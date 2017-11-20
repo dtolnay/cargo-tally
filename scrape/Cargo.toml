@@ -1,0 +1,9 @@
+[package]
+name = "cargo-tally-scrape"
+version = "0.0.0"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+publish = false
+
+[dependencies]
+cargo-tally = { path = ".." }
+rayon = "0.9"
