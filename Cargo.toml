@@ -1,0 +1,29 @@
+[package]
+name = "cargo-tally"
+version = "0.1.0"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Cargo subcommand for drawing graphs of the number of dependencies of a crate over time"
+repository = "https://github.com/dtolnay/cargo-tally"
+categories = ["development-tools::cargo-plugins"]
+readme = "README.md"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+
+[dependencies]
+cargo = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+failure = "0.1"
+failure_derive = "0.1"
+flate2 = "0.2"
+gnuplot = "0.0.23"
+indicatif = "0.8"
+palette = "0.2"
+regex = "0.2"
+reqwest = "0.8"
+semver = { version = "0.9", features = ["serde"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+tar = "0.4"
+unindent = "0.1"
+url = "1.6"
