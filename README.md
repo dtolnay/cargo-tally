@@ -38,7 +38,8 @@ cargo tally --init
   versions of the crate are tallied together.
 
 - **If you come up with an interesting graph, please [open an issue] and just
-  drop the picture in there! I would love to see what you find!**
+  drop the picture in there! I would love to see what you find! Also @mention
+  the crates' authors if you would like to share with them.**
 
 [open an issue]: https://github.com/dtolnay/cargo-tally/issues/new
 
