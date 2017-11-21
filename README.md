@@ -1,6 +1,7 @@
 # Cargo tally
 
-`cargo tally` is a Cargo subcommand for drawing graphs of the number of dependencies of a crate over time. Scroll down for some graphs!
+`cargo tally` is a Cargo subcommand for drawing graphs of the number of
+dependencies of a crate over time. Scroll down for some graphs!
 
 ```
 Usage: cargo tally --init
@@ -18,13 +19,26 @@ cargo install cargo-tally
 cargo tally --init
 ```
 
-- There is a one-time setup step that downloads and extracts a 15 MB tarball of crates.io metadata into a directory called `tally` within the current directory. Subsequent queries read from this cached data and do not query crates.io.
+- There is a one-time setup step that downloads and extracts a 15 MB tarball of
+  crates.io metadata into a directory called `tally` within the current
+  directory. Subsequent queries read from this cached data and do not query
+  crates.io.
 
-- By default `cargo tally` prints out a CSV with a timestamp column and one column for each crate being tallied. Pass the `--graph` flag with a title, like `--graph "Exponential growth!"`, to pop open `gnuplot` with a line graph. Requires `gnuplot` to be present in your $PATH. On Ubuntu I was able to install this with `sudo apt install gnuplot`. If you can't get that working, you can always run without `--graph` and make your own graphs in Excel or Gnumeric.
+- By default `cargo tally` prints out a CSV with a timestamp column and one
+  column for each crate being tallied. Pass the `--graph` flag with a title,
+  like `--graph "Exponential growth!"`, to pop open `gnuplot` with a line graph.
+  Requires `gnuplot` to be present in your $PATH. On Ubuntu I was able to
+  install this with `sudo apt install gnuplot`. If you can't get that working,
+  you can always run without `--graph` and make your own graphs in Excel or
+  Gnumeric.
 
-- The tally command accepts a list of which crates to tally. This can either be the name of a crate like `serde` or a name with major+minor version like `serde:0.9`. If a major+minor version is not specified, dependencies on all versions of the crate are tallied together.
+- The tally command accepts a list of which crates to tally. This can either be
+  the name of a crate like `serde` or a name with major+minor version like
+  `serde:0.9`. If a major+minor version is not specified, dependencies on all
+  versions of the crate are tallied together.
 
-- **If you come up with an interesting graph, please [open an issue] and just drop the picture in there! I would love to see what you find!**
+- **If you come up with an interesting graph, please [open an issue] and just
+  drop the picture in there! I would love to see what you find!**
 
 [open an issue]: https://github.com/dtolnay/cargo-tally/issues/new
 
@@ -57,5 +71,5 @@ at your option.
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in this project by you, as defined in the Apache-2.0 license, shall
-be dual licensed as above, without any additional terms or conditions.
+for inclusion in this project by you, as defined in the Apache-2.0 license,
+shall be dual licensed as above, without any additional terms or conditions.
