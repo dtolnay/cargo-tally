@@ -5,7 +5,9 @@ extern crate rayon;
 use rayon::Scope;
 
 use std::env;
-use std::fmt::Display;
+
+mod unwrap;
+use unwrap::DisplayUnwrap;
 
 const THREADS: usize = 24;
 
@@ -43,20 +45,5 @@ fn init_crate(s: &Scope, k: &Crate) {
         s.spawn(move |_s| {
             cache_dependencies(&name, &num).display_unwrap();
         });
-    }
-}
-
-trait DisplayUnwrap {
-    type Output;
-    fn display_unwrap(self) -> Self::Output;
-}
-
-impl<T, E> DisplayUnwrap for Result<T, E>
-    where E: Display
-{
-    type Output = T;
-
-    fn display_unwrap(self) -> T {
-        self.unwrap_or_else(|err| panic!(err.to_string()))
     }
 }
