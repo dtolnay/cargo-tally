@@ -9,6 +9,7 @@ Usage: cargo tally --init
 
 Options:
     --graph TITLE     Display line graph using gnuplot, rather than dump csv
+    --relative        Display as a fraction of total crates, not absolute number
     --exclude REGEX   Ignore a dependency coming from any crates matching regex
 ```
 
