@@ -66,8 +66,7 @@ Options:
     -h, --help        Print this message
     -V, --version     Print version info and exit
     --graph TITLE     Display line graph using gnuplot, rather than dump csv
-    --relative        (not implemented) Display as a fraction of total crates,
-                      not absolute number
+    --relative        Display as a fraction of total crates, not absolute number
     --transitive      (not implemented) Count transitive dependencies, not
                       just direct dependencies
     --exclude REGEX   Ignore a dependency coming from any crates matching regex
@@ -185,12 +184,11 @@ struct Matcher {
 struct Row {
     timestamp: DateTime<Utc>,
     counts: Vec<usize>,
+    total: usize,
 }
 
 fn tally(flags: Flags) -> Result<(), Error> {
-    if flags.flag_relative {
-        return Err(failure::err_msg("--relative is not implemented"));
-    } else if flags.flag_transitive {
+    if flags.flag_transitive {
         return Err(failure::err_msg("--transitive is not implemented"));
     }
 
@@ -200,12 +198,15 @@ fn tally(flags: Flags) -> Result<(), Error> {
     let mut matchers = create_matchers(&flags)?;
 
     let mut table = Vec::new();
+    let mut all_crates = Set::new();
     for event in chronology {
+        all_crates.insert(event.name.clone());
         let changed = process_event(&mut matchers, &event)?;
         if changed {
             table.push(Row {
                 timestamp: event.timestamp,
                 counts: matchers.iter().map(|m| m.crates_using.len()).collect(),
+                total: all_crates.len(),
             });
         }
     }
@@ -358,11 +359,19 @@ fn draw_graph(flags: &Flags, table: Vec<Row>) {
 
         // Create series
         for i in 0..n {
-            let mut y = Vec::new();
-            for row in &table {
-                y.push(row.counts[i]);
+            if flags.flag_relative {
+                let mut y = Vec::new();
+                for row in &table {
+                    y.push(row.counts[i] as f32 / row.total as f32);
+                }
+                axes.lines(&x, &y, &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])]);
+            } else {
+                let mut y = Vec::new();
+                for row in &table {
+                    y.push(row.counts[i]);
+                }
+                axes.lines(&x, &y, &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])]);
             }
-            axes.lines(&x, &y, &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])]);
         }
     }
 	fg.show();
@@ -387,7 +396,11 @@ fn print_csv(flags: &Flags, table: Vec<Row>) {
     for row in table {
         print!("{}", row.timestamp.format("%m/%d/%Y %H:%M"));
         for column in row.counts {
-            print!(",{}", column);
+            if flags.flag_relative {
+                print!(",{}", column as f32 / row.total as f32);
+            } else {
+                print!(",{}", column);
+            }
         }
         println!();
     }
