@@ -385,7 +385,7 @@ fn print_csv(flags: &Flags, table: Vec<Row>) {
     for row in table {
         print!("{}", row.timestamp.format("%m/%d/%Y %H:%M"));
         for column in row.counts {
-            println!(",{}", column);
+            print!(",{}", column);
         }
         println!();
     }
