@@ -324,6 +324,7 @@ fn process_event(matchers: &mut [Matcher], event: &Event) -> Result<bool, Error>
 
 fn draw_graph(flags: &Flags, table: Vec<Row>) {
     let mut colors = Vec::new();
+    let mut captions = Vec::new();
     let primary: palette::Color = Srgb::new_u8(200, 80, 40).into();
     let n = flags.arg_crate.len();
     for i in 0..n {
@@ -334,6 +335,7 @@ fn draw_graph(flags: &Flags, table: Vec<Row>) {
         let blue = (srgb.blue * 256.0) as u8;
         let hex = format!("#{:02X}{:02X}{:02X}", red, green, blue);
         colors.push(hex);
+        captions.push(flags.arg_crate[i].replace('_', "\\\\_"));
     }
 
 	let mut fg = Figure::new();
@@ -355,12 +357,12 @@ fn draw_graph(flags: &Flags, table: Vec<Row>) {
         }
 
         // Create series
-        for (i, s) in flags.arg_crate.iter().enumerate() {
+        for i in 0..n {
             let mut y = Vec::new();
             for row in &table {
                 y.push(row.counts[i]);
             }
-            axes.lines(&x, &y, &[Caption(s), LineWidth(1.5), Color(&colors[i])]);
+            axes.lines(&x, &y, &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])]);
         }
     }
 	fg.show();
