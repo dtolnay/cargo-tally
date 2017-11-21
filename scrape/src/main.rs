@@ -16,7 +16,7 @@ fn main() {
     rayon::scope(init_index);
 }
 
-fn init_index<'scope>(s: &Scope<'scope>) {
+fn init_index(s: &Scope) {
     let npages = num_pages().display_unwrap();
     for p in 1..npages + 1 {
         s.spawn(move |s| {
@@ -26,7 +26,7 @@ fn init_index<'scope>(s: &Scope<'scope>) {
     }
 }
 
-fn init_page<'scope>(s: &Scope<'scope>, page: &IndexPage) {
+fn init_page(s: &Scope, page: &IndexPage) {
     for krate in &page.crates {
         let name = krate.name.clone();
         s.spawn(move |s| {
@@ -36,7 +36,7 @@ fn init_page<'scope>(s: &Scope<'scope>, page: &IndexPage) {
     }
 }
 
-fn init_crate<'scope>(s: &Scope<'scope>, k: &Crate) {
+fn init_crate(s: &Scope, k: &Crate) {
     for version in &k.versions {
         let name = k.index.name.clone();
         let num = version.num.clone();
