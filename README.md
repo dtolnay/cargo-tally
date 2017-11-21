@@ -1,7 +1,7 @@
 # Cargo tally
 
-`cargo tally` is a Cargo subcommand for drawing graphs of the number of
-dependencies of a crate over time. **Scroll down for some graphs!**
+`cargo tally` is a Cargo subcommand for drawing graphs of the number of direct
+dependencies on a crate over time. **Scroll down for some graphs!**
 
 ```
 Usage: cargo tally --init
