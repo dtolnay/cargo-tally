@@ -339,7 +339,7 @@ fn draw_graph(flags: &Flags, table: Vec<Row>) {
         captions.push(flags.arg_crate[i].replace('_', "\\\\_"));
     }
 
-	let mut fg = Figure::new();
+    let mut fg = Figure::new();
     {
         // Create plot
         let axes = fg.axes2d();
@@ -374,7 +374,7 @@ fn draw_graph(flags: &Flags, table: Vec<Row>) {
             }
         }
     }
-	fg.show();
+    fg.show();
 }
 
 fn float_year(dt: &DateTime<Utc>) -> f64 {
