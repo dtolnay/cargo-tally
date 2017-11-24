@@ -6,15 +6,18 @@ extern crate failure_derive;
 
 extern crate chrono;
 extern crate failure;
+extern crate fnv;
 extern crate reqwest;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
 extern crate url;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 
 use failure::Error;
+
+use fnv::FnvHashMap as Map;
 
 use semver::{Version, VersionReq};
 
@@ -31,6 +34,8 @@ use std::path::{Path, PathBuf};
 
 const PER_PAGE: usize = 100;
 const RETRIES: usize = 32;
+
+pub type DateTime = chrono::DateTime<Utc>;
 
 #[derive(Deserialize, Debug)]
 pub struct IndexPage {
@@ -64,13 +69,26 @@ pub struct Dependencies {
 pub struct Dependency {
     #[serde(rename = "crate_id")]
     pub name: String,
+    pub kind: DependencyKind,
     pub req: VersionReq,
+    pub optional: bool,
+    pub default_features: bool,
+    pub features: Vec<String>,
+}
+
+#[derive(Deserialize, Clone, Copy, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum DependencyKind {
+    Normal,
+    Build,
+    Dev,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct CrateVersion {
     pub num: Version,
-    pub created_at: DateTime<Utc>,
+    pub created_at: DateTime,
+    pub features: Map<String, Vec<String>>,
 }
 
 pub fn cache_index(n: usize) -> Result<IndexPage, Error> {
@@ -112,6 +130,16 @@ impl Display for FileNotFoundError {
         write!(formatter,
             "file not found, run `cargo tally --init` to download: {}",
             self.path.display())
+    }
+}
+
+impl Display for DependencyKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            DependencyKind::Normal => write!(formatter, "normal"),
+            DependencyKind::Build => write!(formatter, "build"),
+            DependencyKind::Dev => write!(formatter, "dev"),
+        }
     }
 }
 
