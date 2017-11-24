@@ -5,12 +5,16 @@ extern crate cargo;
 extern crate chrono;
 extern crate failure;
 extern crate flate2;
+extern crate fnv;
 extern crate gnuplot;
 extern crate indicatif;
+extern crate isatty;
 extern crate palette;
+extern crate petgraph;
 extern crate regex;
 extern crate reqwest;
 extern crate semver;
+extern crate semver_parser;
 extern crate serde;
 extern crate tar;
 extern crate unindent;
@@ -19,32 +23,42 @@ use cargo::{CliResult, CliError};
 use cargo::core::shell::Shell;
 use cargo::util::{Config, CargoError};
 
-use chrono::{DateTime, Utc, NaiveDate, NaiveTime, NaiveDateTime};
+use chrono::{Utc, NaiveDate, NaiveTime, NaiveDateTime};
 
 use failure::Error;
 
 use flate2::read::GzDecoder;
+
+use fnv::{FnvHashSet as Set, FnvHashMap as Map};
 
 use gnuplot::{Figure, Fix, Auto, Caption, LineWidth, AxesCommon, Color,
               MinorScale, Graph, Placement, AlignLeft, AlignTop};
 
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
+use isatty::stderr_isatty;
+
 use palette::Hue;
 use palette::pixel::Srgb;
+
+use petgraph::{Incoming, Outgoing};
+use petgraph::graph::NodeIndex;
 
 use regex::Regex;
 
 use reqwest::header::ContentLength;
 
-use semver::Version;
+use semver::{Version, VersionReq};
+use semver_parser::range::{self, Predicate};
+use semver_parser::range::Op::Compatible;
 
 use tar::Archive;
 
 use unindent::unindent;
 
-use std::collections::HashSet as Set;
 use std::env;
+use std::fmt::{self, Display};
+use std::mem;
 use std::path::Path;
 use std::u64;
 
@@ -148,12 +162,14 @@ fn init() -> Result<(), Error> {
     let tgz = reqwest::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
-    if let Some(&ContentLength(n)) = tgz.headers().get() {
-        pb.set_length(n);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-            .progress_chars("#>-"));
-        pb.set_draw_target(ProgressDrawTarget::stderr());
+    if stderr_isatty() {
+        if let Some(&ContentLength(n)) = tgz.headers().get() {
+            pb.set_length(n);
+            pb.set_style(ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+                .progress_chars("&&."));
+            pb.set_draw_target(ProgressDrawTarget::stderr());
+        }
     }
 
     let tracker = ProgressRead::new(&pb, tgz);
@@ -161,30 +177,79 @@ fn init() -> Result<(), Error> {
     let mut archive = Archive::new(decoder);
     archive.unpack(".")?;
 
-    pb.finish_with_message("ready to tally!");
+    pb.finish_and_clear();
     Ok(())
+}
+
+#[derive(Debug)]
+struct Universe {
+    graph: petgraph::Graph<Key, Edge>,
+    crates: Map<String, Vec<NodeIndex>>,
+}
+
+#[derive(Debug)]
+struct Key {
+    name: String,
+    num: Version,
+    crates_incoming: Set<String>,
+}
+
+impl Display for Key {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "{}:{}", self.name, self.num)
+    }
+}
+
+#[derive(Debug)]
+enum Edge {
+    Current {
+        kind: DependencyKind,
+        req: VersionReq,
+        optional: bool,
+        default_features: bool,
+        features: Vec<String>,
+    },
+    Obsolete,
+}
+
+impl Display for Edge {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Edge::Current { kind, .. } => write!(formatter, "{}", kind),
+            Edge::Obsolete => write!(formatter, "obsolete"),
+        }
+    }
 }
 
 #[derive(Debug)]
 struct Event {
     name: String,
     num: Version,
-    timestamp: DateTime<Utc>,
+    timestamp: DateTime,
     dependencies: Vec<Dependency>,
 }
 
 #[derive(Debug)]
 struct Matcher {
     name: String,
-    num: Option<Version>,
-    crates_using: Set<String>,
+    req: VersionReq,
+    matches: Vec<NodeIndex>,
 }
 
 #[derive(Debug)]
 struct Row {
-    timestamp: DateTime<Utc>,
+    timestamp: DateTime,
     counts: Vec<usize>,
     total: usize,
+}
+
+impl Universe {
+    fn new() -> Self {
+        Universe {
+            graph: petgraph::Graph::new(),
+            crates: Map::default(),
+        }
+    }
 }
 
 fn tally(flags: Flags) -> Result<(), Error> {
@@ -195,21 +260,33 @@ fn tally(flags: Flags) -> Result<(), Error> {
     let mut chronology = load_data(&flags)?;
     chronology.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
+    let mut universe = Universe::new();
     let mut matchers = create_matchers(&flags)?;
+    let mut table = Vec::<Row>::new();
 
-    let mut table = Vec::new();
-    let mut all_crates = Set::new();
-    for event in chronology {
-        all_crates.insert(event.name.clone());
-        let changed = process_event(&mut matchers, &event)?;
-        if changed {
-            table.push(Row {
-                timestamp: event.timestamp,
-                counts: matchers.iter().map(|m| m.crates_using.len()).collect(),
-                total: all_crates.len(),
-            });
-        }
+    let n = chronology.len() as u64;
+    let pb = ProgressBar::hidden();
+    if stderr_isatty() {
+        pb.set_length(n * n);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{wide_bar:.cyan/blue}] {percent}%")
+            .progress_chars("&&."));
+        pb.set_draw_target(ProgressDrawTarget::stderr());
     }
+    for (i, event) in chronology.into_iter().enumerate() {
+        let timestamp = event.timestamp.clone();
+        process_event(&mut universe, &mut matchers, event);
+        let row = compute_counts(&universe, &matchers, timestamp);
+        let include = match table.last() {
+            None => row.counts.iter().any(|&count| count != 0),
+            Some(last) => last.counts != row.counts,
+        };
+        if include {
+            table.push(row);
+        }
+        pb.inc(2 * i as u64 + 1);
+    }
+    pb.finish_and_clear();
     if table.is_empty() {
         return Err(failure::err_msg("nothing found for this crate"));
     }
@@ -260,67 +337,145 @@ fn create_matchers(flags: &Flags) -> Result<Vec<Matcher>, Error> {
         let mut pieces = s.splitn(2, ':');
         matchers.push(Matcher {
             name: pieces.next().unwrap().to_owned(),
-            num: match pieces.next() {
-                Some(num) => {
-                    match parse_major_minor(num) {
-                        Ok(num) => Some(num),
-                        Err(_) => {
-                            return Err(failure::err_msg(format!(
-                                "Failed to parse series {:?}, \
-                                 expected something like \"serde:0.9\"", s)));
-                        }
-                    }
+            req: match pieces.next().unwrap_or("*").parse() {
+                Ok(req) => req,
+                Err(err) => {
+                    return Err(failure::err_msg(format!(
+                        "Failed to parse series {}: {}", s, err)));
                 }
-                None => None,
             },
-            crates_using: Set::new(),
+            matches: Vec::new(),
         });
     }
 
     Ok(matchers)
 }
 
-fn parse_major_minor(num: &str) -> Result<Version, Error> {
-    let mut pieces = num.splitn(2, '.');
-    let major = pieces.next().unwrap().parse()?;
-    let minor = pieces.next().ok_or(failure::err_msg("missing minor"))?.parse()?;
-    Ok(Version::new(major, minor, u64::MAX))
-}
+fn process_event(universe: &mut Universe, matchers: &mut [Matcher], event: Event) {
+    // Insert new node in graph
+    let key = Key {
+        name: event.name.clone(),
+        num: event.num.clone(),
+        crates_incoming: Set::default(),
+    };
+    let new = universe.graph.add_node(key);
 
-fn process_event(matchers: &mut [Matcher], event: &Event) -> Result<bool, Error> {
-    let mut changed = false;
-
-    for matcher in matchers {
-        let mut using = false;
-        for dep in &event.dependencies {
-            if dep.name == matcher.name {
-                using = true;
-                let matches = match matcher.num {
-                    Some(ref version) => {
-                        // Exclude silly wildcard deps
-                        if dep.req.matches(&Version::new(0, u64::MAX, 0)) {
-                            false
-                        } else if dep.req.matches(&Version::new(u64::MAX, 0, 0)) {
-                            false
-                        } else {
-                            dep.req.matches(version)
-                        }
-                    }
-                    None => true,
-                };
-                changed |= if matches {
-                    matcher.crates_using.insert(event.name.clone())
-                } else {
-                    matcher.crates_using.remove(&event.name)
-                };
+    // If there is an older version of this crate, remove its name from
+    // everything it depends on
+    if let Some(older) = universe.crates.get(&event.name) {
+        if let Some(&last) = older.last() {
+            let mut walk = universe.graph.neighbors_directed(last, Outgoing).detach();
+            while let Some(edge) = walk.next_edge(&universe.graph) {
+                let endpoints = universe.graph.edge_endpoints(edge).unwrap();
+                universe.graph[endpoints.1].crates_incoming.remove(&event.name);
+                mem::replace(&mut universe.graph[edge], Edge::Obsolete);
             }
-        }
-        if !using {
-            changed |= matcher.crates_using.remove(&event.name);
         }
     }
 
-    Ok(changed)
+    // Add edges to all nodes depended on by the new node
+    for dep in event.dependencies {
+        if dep.name != event.name {
+            if let Some(target) = resolve(universe, &dep.name, &dep.req) {
+                universe.graph.add_edge(new, target, Edge::Current {
+                    kind: dep.kind,
+                    req: dep.req,
+                    optional: dep.optional,
+                    default_features: dep.default_features,
+                    features: dep.features,
+                });
+                universe.graph[target].crates_incoming.insert(event.name.clone());
+            }
+        }
+    }
+
+    // Find all nodes representing older versions of the same crate
+    let older = universe.crates.entry(event.name.clone()).or_insert_with(Vec::new);
+
+    // Update edges that previously depended on older version of this crate
+    for &node in &*older {
+        if is_compatible(&universe.graph[node].num, &event.num) {
+            let mut walk = universe.graph.neighbors_directed(node, Incoming).detach();
+            while let Some(edge) = walk.next_edge(&universe.graph) {
+                let mut repoint = false;
+                if let Edge::Current { ref req, .. } = universe.graph[edge] {
+                    repoint = req.matches(&event.num);
+                }
+                if repoint {
+                    let endpoints = universe.graph.edge_endpoints(edge).unwrap();
+                    let old = mem::replace(&mut universe.graph[edge], Edge::Obsolete);
+                    universe.graph.add_edge(endpoints.0, new, old);
+                    let reverse_dep = universe.graph[endpoints.0].name.clone();
+                    if universe.graph[endpoints.1].crates_incoming.remove(&reverse_dep) {
+                        universe.graph[new].crates_incoming.insert(reverse_dep);
+                    }
+                }
+            }
+        }
+    }
+
+    // Update matchers that tally the new node
+    for matcher in matchers {
+        if matcher.name == event.name && matcher.req.matches(&event.num) {
+            matcher.matches.push(new);
+        }
+    }
+
+    // Add new node to list of versions of its crate
+    older.push(new);
+}
+
+fn resolve(universe: &Universe, name: &str, req: &VersionReq) -> Option<NodeIndex> {
+    let versions = universe.crates.get(name)?;
+    let mut max = None::<NodeIndex>;
+    for &node in versions {
+        let key = &universe.graph[node];
+        if req.matches(&key.num) {
+            if max.map(|max| key.num > universe.graph[max].num).unwrap_or(true) {
+                max = Some(node);
+            }
+        }
+    }
+    Some(max.unwrap_or(*versions.last().unwrap()))
+}
+
+fn is_compatible(older: &Version, newer: &Version) -> bool {
+    use semver::Identifier as SemverId;
+    use semver_parser::version::Identifier as ParseId;
+    let req = range::VersionReq {
+        predicates: vec![
+            Predicate {
+                op: Compatible,
+                major: older.major,
+                minor: Some(older.minor),
+                patch: Some(older.patch),
+                pre: older.pre.iter().map(|pre| {
+                    match *pre {
+                        SemverId::Numeric(n) => ParseId::Numeric(n),
+                        SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
+                    }
+                }).collect(),
+            },
+        ],
+    };
+    VersionReq::from(req).matches(newer)
+}
+
+fn compute_counts(universe: &Universe, matchers: &[Matcher], timestamp: DateTime) -> Row {
+    let mut crates = Set::default();
+    Row {
+        timestamp: timestamp,
+        counts: matchers.iter()
+            .map(|matcher| {
+                crates.clear();
+                for &node in &matcher.matches {
+                    crates.extend(&universe.graph[node].crates_incoming);
+                }
+                crates.len()
+            })
+            .collect(),
+        total: universe.crates.len(),
+    }
 }
 
 fn draw_graph(flags: &Flags, table: Vec<Row>) {
@@ -377,10 +532,10 @@ fn draw_graph(flags: &Flags, table: Vec<Row>) {
     fg.show();
 }
 
-fn float_year(dt: &DateTime<Utc>) -> f64 {
+fn float_year(dt: &DateTime) -> f64 {
     let nd = NaiveDate::from_ymd(2017, 1, 1);
     let nt = NaiveTime::from_hms_milli(0, 0, 0, 0);
-    let base = DateTime::<Utc>::from_utc(NaiveDateTime::new(nd, nt), Utc);
+    let base = DateTime::from_utc(NaiveDateTime::new(nd, nt), Utc);
     let offset = dt.signed_duration_since(base.clone());
     let year = offset.num_minutes() as f64 / 525960.0 + 2017.0;
     year
