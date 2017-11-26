@@ -21,7 +21,7 @@ use fnv::FnvHashMap as Map;
 
 use semver::{Version, VersionReq};
 
-use serde::de::DeserializeOwned;
+use serde::de::{Deserialize, DeserializeOwned, Deserializer};
 use serde_json::Value;
 
 use url::Url;
@@ -65,7 +65,7 @@ pub struct Dependencies {
     pub dependencies: Vec<Dependency>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct Dependency {
     #[serde(rename = "crate_id")]
     pub name: String,
@@ -76,7 +76,7 @@ pub struct Dependency {
     pub features: Vec<String>,
 }
 
-#[derive(Deserialize, Clone, Copy, Debug)]
+#[derive(Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum DependencyKind {
     Normal,
@@ -88,7 +88,29 @@ pub enum DependencyKind {
 pub struct CrateVersion {
     pub num: Version,
     pub created_at: DateTime,
-    pub features: Map<String, Vec<String>>,
+    pub features: Map<String, Vec<Feature>>,
+}
+
+#[derive(Clone, Debug)]
+pub enum Feature {
+    Current(String),
+    Dependency(String, String),
+}
+
+impl<'de> Deserialize<'de> for Feature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de>
+    {
+        let mut s = String::deserialize(deserializer)?;
+        Ok(match s.find('/') {
+            Some(slash) => {
+                let feature = s[slash + 1..].to_owned();
+                s.truncate(slash);
+                Feature::Dependency(s, feature)
+            }
+            None => Feature::Current(s),
+        })
+    }
 }
 
 pub fn cache_index(n: usize) -> Result<IndexPage, Error> {
@@ -139,6 +161,17 @@ impl Display for DependencyKind {
             DependencyKind::Normal => write!(formatter, "normal"),
             DependencyKind::Build => write!(formatter, "build"),
             DependencyKind::Dev => write!(formatter, "dev"),
+        }
+    }
+}
+
+impl Display for Feature {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Feature::Current(ref feature) => write!(formatter, "{}", feature),
+            Feature::Dependency(ref name, ref feature) => {
+                write!(formatter, "{}/{}", name, feature)
+            }
         }
     }
 }
@@ -205,6 +238,15 @@ where
     Ok(data)
 }
 
+#[cfg(feature = "cargo-clippy")]
+fn retry<F, R>(_f: F) -> R
+    where F: Fn() -> R
+{
+    let _ = RETRIES;
+    unimplemented!()
+}
+
+#[cfg(not(feature = "cargo-clippy"))]
 fn retry<F, T, E>(f: F) -> Result<T, E>
     where F: Fn() -> Result<T, E>
 {
