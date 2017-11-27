@@ -62,6 +62,12 @@ pub(crate) struct Row {
     pub(crate) total: usize,
 }
 
+impl CrateKey {
+    fn new(name: CrateName, index: u32) -> Self {
+        CrateKey { name, index }
+    }
+}
+
 impl Universe {
     fn new(transitive: bool) -> Self {
         Universe {
@@ -87,20 +93,14 @@ impl Universe {
 
         let mut redo = Set::default();
         if let Some(prev) = self.crates.get(&event.name) {
-            let key = CrateKey {
-                name: event.name,
-                index: prev.len() as u32 - 1,
-            };
+            let key = CrateKey::new(event.name, prev.len() as u32 - 1);
             for dep in &self.depends[&key] {
                 self.reverse_depends.get_mut(dep).unwrap().remove(&key);
             }
             self.depends.remove(&key);
             for (i, metadata) in prev.iter().enumerate() {
                 if is_compatible(&metadata.num, &event.num) {
-                    let key = CrateKey {
-                        name: event.name,
-                        index: i as u32,
-                    };
+                    let key = CrateKey::new(event.name, i as u32);
                     for node in self.reverse_depends[&key].clone() {
                         for dep in &self.depends[&node] {
                             self.reverse_depends.get_mut(dep).unwrap().remove(&node);
@@ -119,10 +119,7 @@ impl Universe {
         };
 
         let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
-        let key = CrateKey {
-            name: event.name,
-            index: index as u32,
-        };
+        let key = CrateKey::new(event.name, index as u32);
         self.resolve_and_add_to_graph(key, &metadata);
         self.reverse_depends.insert(key, Set::default());
         self.crates.get_mut(&event.name).unwrap().push(metadata);
@@ -140,10 +137,7 @@ impl Universe {
 
         for dep in &metadata.dependencies {
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
-                let key = CrateKey {
-                    name: crate_name(&*dep.name),
-                    index: index as u32,
-                };
+                let key = CrateKey::new(crate_name(&*dep.name), index);
                 if self.transitive {
                     resolve.add_crate(self, key, dep.default_features, &dep.features);
                 } else {
@@ -184,10 +178,7 @@ impl Universe {
                 .map(|matcher| {
                     set.clear();
                     for index in &matcher.nodes {
-                        let key = CrateKey {
-                            name: matcher.name,
-                            index: *index as u32,
-                        };
+                        let key = CrateKey::new(matcher.name, *index);
                         set.extend(self.reverse_depends[&key].iter().map(|key| key.name));
                     }
                     set.len()
@@ -245,10 +236,7 @@ impl Resolve {
             );
             for (dep, index) in metadata.dependencies.iter().zip(resolved) {
                 if !dep.optional && dep.kind != DependencyKind::Dev && index.is_some() {
-                    let key = CrateKey {
-                        name: crate_name(&*dep.name),
-                        index: index.unwrap(),
-                    };
+                    let key = CrateKey::new(crate_name(&*dep.name), index.unwrap());
                     self.add_crate(universe, key, dep.default_features, &dep.features);
                 }
             }
@@ -287,10 +275,7 @@ impl Resolve {
                             println!("uh-oh");
                         }
                         if let Some(resolved) = self.crates[&key].resolved[i] {
-                            let key = CrateKey {
-                                name: crate_name(&**name),
-                                index: resolved,
-                            };
+                            let key = CrateKey::new(crate_name(&**name), resolved);
                             self.add_crate(universe, key, dep.default_features, &dep.features);
                             self.add_crate_feature(universe, key, feature);
                         }
@@ -333,10 +318,7 @@ impl Resolve {
                         println!("uh-oh");
                     }
                     if let Some(resolved) = self.crates[&key].resolved[i] {
-                        let key = CrateKey {
-                            name: crate_name(feature),
-                            index: resolved,
-                        };
+                        let key = CrateKey::new(crate_name(feature), resolved);
                         self.add_crate(universe, key, dep.default_features, &dep.features);
                     }
                     return;
