@@ -146,7 +146,7 @@ impl Universe {
             }
         }
 
-        trace!(
+        debug!(
             "depends on {:?}",
             CrateCollection::new(self, resolve.crates.keys())
         );

@@ -33,6 +33,7 @@ extern crate unindent;
 use cargo::{CliError, CliResult};
 use cargo::core::shell::Shell;
 use cargo::util::{CargoError, Config};
+use env_logger::LogBuilder;
 
 use std::env;
 
@@ -76,6 +77,13 @@ struct Flags {
 }
 
 fn main() {
+    let mut builder = LogBuilder::new();
+    builder.format(|record| format!("{}", record.args()));
+    if let Ok(log_config) = env::var("TALLY_LOG") {
+        builder.parse(&log_config);
+    }
+    builder.init().unwrap();
+
     let config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
