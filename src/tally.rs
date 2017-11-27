@@ -12,6 +12,7 @@ use regex::Regex;
 use semver::{Version, VersionReq};
 use semver_parser::range::Op::Compatible;
 use semver_parser::range::{self, Predicate};
+use std::u64;
 
 use Flags;
 
@@ -99,7 +100,7 @@ impl Universe {
             }
             self.depends.remove(&key);
             for (i, metadata) in prev.iter().enumerate() {
-                if is_compatible(&metadata.num, &event.num) {
+                if compatible_req(&metadata.num).matches(&event.num) {
                     let key = CrateKey::new(event.name, i as u32);
                     for node in self.reverse_depends[&key].clone() {
                         for dep in &self.depends[&node] {
@@ -111,11 +112,24 @@ impl Universe {
             }
         }
 
+        // Fix up silly wildcard deps by pinning them to versions compatible
+        // with the latest release of the dep
+        let mut dependencies = event.dependencies;
+        let version_max = Version::new(u64::MAX, u64::MAX, u64::MAX);
+        for dep in &mut dependencies {
+            if dep.req.matches(&version_max) {
+                let name = crate_name(&*dep.name);
+                if let Some(releases) = self.crates.get(&name) {
+                    dep.req = compatible_req(&releases.last().unwrap().num);
+                }
+            }
+        }
+
         let metadata = Metadata {
             num: event.num,
             created_at: event.timestamp,
             features: event.features,
-            dependencies: event.dependencies,
+            dependencies,
         };
 
         let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
@@ -440,17 +454,17 @@ fn create_matchers(flags: &Flags) -> Result<Vec<Matcher>, Error> {
     Ok(matchers)
 }
 
-fn is_compatible(older: &Version, newer: &Version) -> bool {
+fn compatible_req(version: &Version) -> VersionReq {
     use semver::Identifier as SemverId;
     use semver_parser::version::Identifier as ParseId;
-    let req = range::VersionReq {
+    VersionReq::from(range::VersionReq {
         predicates: vec![
             Predicate {
                 op: Compatible,
-                major: older.major,
-                minor: Some(older.minor),
-                patch: Some(older.patch),
-                pre: older
+                major: version.major,
+                minor: Some(version.minor),
+                patch: Some(version.patch),
+                pre: version
                     .pre
                     .iter()
                     .map(|pre| match *pre {
@@ -460,6 +474,5 @@ fn is_compatible(older: &Version, newer: &Version) -> bool {
                     .collect(),
             },
         ],
-    };
-    VersionReq::from(req).matches(newer)
+    })
 }
