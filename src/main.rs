@@ -41,6 +41,7 @@ use cargo::util::{Config, CargoError};
 use std::env;
 
 mod csv;
+mod debug;
 mod graph;
 mod init;
 mod intern;

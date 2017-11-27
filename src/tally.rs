@@ -1,6 +1,7 @@
 use cargo_tally::{Dependency, DependencyKind, Feature, DateTime};
 use cargo_tally::{num_pages, cache_index, cache_crate, cache_dependencies};
 use csv::print_csv;
+use debug::CrateCollection;
 use failure::{self, Error};
 use fnv::{FnvHashSet as Set, FnvHashMap as Map};
 use graph::draw_graph;
@@ -11,27 +12,26 @@ use regex::Regex;
 use semver::{Version, VersionReq};
 use semver_parser::range::Op::Compatible;
 use semver_parser::range::{self, Predicate};
-use std::fmt::{self, Debug};
 
 use Flags;
 
 #[derive(Debug)]
-struct Universe {
-    crates: Map<CrateName, Vec<Metadata>>,
+pub(crate) struct Universe {
+    pub(crate) crates: Map<CrateName, Vec<Metadata>>,
     depends: Map<CrateKey, Vec<CrateKey>>,
     reverse_depends: Map<CrateKey, Set<CrateKey>>,
     transitive: bool,
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct CrateKey {
-    name: CrateName,
-    index: u32,
+pub(crate) struct CrateKey {
+    pub(crate) name: CrateName,
+    pub(crate) index: u32,
 }
 
 #[derive(Clone, Debug)]
-struct Metadata {
-    num: Version,
+pub(crate) struct Metadata {
+    pub(crate) num: Version,
     created_at: DateTime,
     features: Map<String, Vec<Feature>>,
     dependencies: Vec<Dependency>,
@@ -143,7 +143,7 @@ impl Universe {
             }
         }
 
-        trace!("depends on {:?}", CrateCollection { universe: self, crates: resolve.crates.keys() });
+        trace!("depends on {:?}", CrateCollection::new(self, resolve.crates.keys()));
 
         for dep in resolve.crates.keys() {
             self.reverse_depends.entry(*dep).or_insert_with(Set::default).insert(key);
@@ -189,33 +189,6 @@ impl ResolvedCrate {
             features: Set::default(),
             resolved: Vec::new(),
         }
-    }
-}
-
-struct CrateCollection<'a, I> {
-    universe: &'a Universe,
-    crates: I,
-}
-
-impl<'a, I> Debug for CrateCollection<'a, I>
-    where I: Clone + IntoIterator<Item = &'a CrateKey>
-{
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        struct DebugCrate<'a> {
-            universe: &'a Universe,
-            key: CrateKey,
-        }
-
-        impl<'a> Debug for DebugCrate<'a> {
-            fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                let name = self.key.name;
-                let num = &self.universe.crates[&name][self.key.index as usize].num;
-                write!(formatter, "{}:{}", name, num)
-            }
-        }
-
-        let crates = self.crates.clone().into_iter().map(|&key| DebugCrate { universe: self.universe, key });
-        formatter.debug_list().entries(crates).finish()
     }
 }
 
