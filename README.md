@@ -10,6 +10,7 @@ Usage: cargo tally --init
 Options:
     --graph TITLE     Display line graph using gnuplot, rather than dump csv
     --relative        Display as a fraction of total crates, not absolute number
+    --transitive      Count transitive dependencies, not just direct dependencies
     --exclude REGEX   Ignore a dependency coming from any crates matching regex
 ```
 
@@ -58,8 +59,15 @@ cargo tally --init
 
 ---
 
+### `cargo tally --graph "Fraction of crates.io that depends transitively on libc" --relative --transitive libc`
+
+![Fraction of crates.io that depends transitively on libc][transitive-libc]
+
+---
+
 [serde-rustc-serialize]: https://user-images.githubusercontent.com/1940490/33064453-910b0754-ce5a-11e7-8cf3-8352ee4e0eca.png
 [serde-versions]: https://user-images.githubusercontent.com/1940490/33064449-8df822e0-ce5a-11e7-9863-1ada8ae8c0eb.png
+[transitive-libc]: https://user-images.githubusercontent.com/1940490/33252553-b71b9ec0-d2f3-11e7-8abf-720cf00ac3ce.png
 
 ## License
 
