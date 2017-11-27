@@ -30,7 +30,7 @@ pub struct CrateName {
     not_send_sync: PhantomData<*const ()>,
 }
 
-pub fn intern<T: Into<String> + AsRef<str>>(string: T) -> CrateName {
+pub fn crate_name<T: Into<String> + AsRef<str>>(string: T) -> CrateName {
     let c = INTERN.interner.get();
     let c = unsafe { &mut *c };
     c.get_or_intern(string)
