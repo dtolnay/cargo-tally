@@ -82,7 +82,7 @@ impl Universe {
             .map(|(i, _)| i as u32)
     }
 
-    fn process_event(&mut self, event: Event, matchers: &[Matcher]) {
+    fn process_event(&mut self, event: Event) {
         info!("processing event {} {}", event.name, event.num);
 
         let mut redo = Set::default();
@@ -98,22 +98,10 @@ impl Universe {
                 if is_compatible(&metadata.num, &event.num) {
                     let key = CrateKey { name: event.name, index: i as u32 };
                     for node in self.reverse_depends[&key].clone() {
-                        let mut upstream_of_matcher = false;
-                        'matchers: for matcher in matchers {
-                            for index in &matcher.nodes {
-                                let key = CrateKey { name: matcher.name, index: *index as u32 };
-                                if self.reverse_depends[&key].contains(&node) {
-                                    upstream_of_matcher = true;
-                                    break 'matchers;
-                                }
-                            }
+                        for dep in &self.depends[&node] {
+                            self.reverse_depends.get_mut(dep).unwrap().remove(&node);
                         }
-                        if upstream_of_matcher {
-                            for dep in &self.depends[&node] {
-                                self.reverse_depends.get_mut(dep).unwrap().remove(&node);
-                            }
-                            redo.insert(node);
-                        }
+                        redo.insert(node);
                     }
                 }
             }
@@ -350,7 +338,7 @@ pub(crate) fn tally(flags: &Flags) -> Result<(), Error> {
         let name = event.name;
         let num = event.num.clone();
         let timestamp = event.timestamp;
-        universe.process_event(event, &matchers);
+        universe.process_event(event);
         for matcher in &mut matchers {
             if matcher.name == name && matcher.req.matches(&num) {
                 matcher.nodes.push(universe.crates[&name].len() as u32 - 1);
