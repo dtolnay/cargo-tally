@@ -1,7 +1,7 @@
-use chrono::{Utc, NaiveDate, NaiveTime, NaiveDateTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
-use gnuplot::{Figure, Fix, Auto, Caption, LineWidth, AxesCommon, Color,
-              MinorScale, Graph, Placement, AlignLeft, AlignTop};
+use gnuplot::{AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph,
+              LineWidth, MinorScale, Placement};
 
 use palette;
 use palette::Hue;
@@ -34,10 +34,16 @@ pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
         axes.set_title(flags.flag_graph.as_ref().unwrap(), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
-            Fix(float_year(&Utc::now()) + 0.15));
+            Fix(float_year(&Utc::now()) + 0.15),
+        );
         axes.set_y_range(Fix(0.0), Auto);
         axes.set_x_ticks(Some((Fix(1.0), 12)), &[MinorScale(2.0)], &[]);
-        axes.set_legend(Graph(0.05), Graph(0.9), &[Placement(AlignLeft, AlignTop)], &[]);
+        axes.set_legend(
+            Graph(0.05),
+            Graph(0.9),
+            &[Placement(AlignLeft, AlignTop)],
+            &[],
+        );
 
         // Create x-axis
         let mut x = Vec::new();
@@ -52,13 +58,21 @@ pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
                 for row in table {
                     y.push(row.counts[i] as f32 / row.total as f32);
                 }
-                axes.lines(&x, &y, &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])]);
+                axes.lines(
+                    &x,
+                    &y,
+                    &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
+                );
             } else {
                 let mut y = Vec::new();
                 for row in table {
                     y.push(row.counts[i]);
                 }
-                axes.lines(&x, &y, &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])]);
+                axes.lines(
+                    &x,
+                    &y,
+                    &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
+                );
             }
         }
     }

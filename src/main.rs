@@ -1,9 +1,5 @@
-#![cfg_attr(feature = "cargo-clippy", allow(
-    let_and_return,
-    map_entry,
-    needless_pass_by_value,
-    redundant_closure_call,
-))]
+#![cfg_attr(feature = "cargo-clippy",
+            allow(let_and_return, map_entry, needless_pass_by_value, redundant_closure_call))]
 
 #[macro_use]
 extern crate serde_derive;
@@ -34,9 +30,9 @@ extern crate string_interner;
 extern crate tar;
 extern crate unindent;
 
-use cargo::{CliResult, CliError};
+use cargo::{CliError, CliResult};
 use cargo::core::shell::Shell;
-use cargo::util::{Config, CargoError};
+use cargo::util::{CargoError, Config};
 
 use std::env;
 
@@ -96,7 +92,8 @@ fn main() {
                         CargoError::from(format!("invalid unicode in argument: {:?}", s))
                     })
                 })
-                .collect());
+                .collect()
+        );
         let rest = &args;
         cargo::call_main_without_stdin(real_main, &config, USAGE, rest, false)
     })();

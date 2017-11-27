@@ -1,9 +1,9 @@
-use cargo_tally::{Dependency, DependencyKind, Feature, DateTime};
-use cargo_tally::{num_pages, cache_index, cache_crate, cache_dependencies};
+use cargo_tally::{DateTime, Dependency, DependencyKind, Feature};
+use cargo_tally::{cache_crate, cache_dependencies, cache_index, num_pages};
 use csv::print_csv;
 use debug::CrateCollection;
 use failure::{self, Error};
-use fnv::{FnvHashSet as Set, FnvHashMap as Map};
+use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use graph::draw_graph;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use intern::{crate_name, CrateName};
@@ -87,16 +87,20 @@ impl Universe {
 
         let mut redo = Set::default();
         if let Some(prev) = self.crates.get(&event.name) {
-            {
-                let key = CrateKey { name: event.name, index: prev.len() as u32 - 1 };
-                for dep in &self.depends[&key] {
-                    self.reverse_depends.get_mut(dep).unwrap().remove(&key);
-                }
-                self.depends.remove(&key);
+            let key = CrateKey {
+                name: event.name,
+                index: prev.len() as u32 - 1,
+            };
+            for dep in &self.depends[&key] {
+                self.reverse_depends.get_mut(dep).unwrap().remove(&key);
             }
+            self.depends.remove(&key);
             for (i, metadata) in prev.iter().enumerate() {
                 if is_compatible(&metadata.num, &event.num) {
-                    let key = CrateKey { name: event.name, index: i as u32 };
+                    let key = CrateKey {
+                        name: event.name,
+                        index: i as u32,
+                    };
                     for node in self.reverse_depends[&key].clone() {
                         for dep in &self.depends[&node] {
                             self.reverse_depends.get_mut(dep).unwrap().remove(&node);
@@ -114,9 +118,11 @@ impl Universe {
             dependencies: event.dependencies,
         };
 
-
         let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
-        let key = CrateKey { name: event.name, index: index as u32 };
+        let key = CrateKey {
+            name: event.name,
+            index: index as u32,
+        };
         self.resolve_and_add_to_graph(key, &metadata);
         self.reverse_depends.insert(key, Set::default());
         self.crates.get_mut(&event.name).unwrap().push(metadata);
@@ -134,7 +140,10 @@ impl Universe {
 
         for dep in &metadata.dependencies {
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
-                let key = CrateKey { name: crate_name(&*dep.name), index: index as u32 };
+                let key = CrateKey {
+                    name: crate_name(&*dep.name),
+                    index: index as u32,
+                };
                 if self.transitive {
                     resolve.add_crate(self, key, dep.default_features, &dep.features);
                 } else {
@@ -143,25 +152,42 @@ impl Universe {
             }
         }
 
-        trace!("depends on {:?}", CrateCollection::new(self, resolve.crates.keys()));
+        trace!(
+            "depends on {:?}",
+            CrateCollection::new(self, resolve.crates.keys())
+        );
 
         for dep in resolve.crates.keys() {
-            self.reverse_depends.entry(*dep).or_insert_with(Set::default).insert(key);
+            self.reverse_depends
+                .entry(*dep)
+                .or_insert_with(Set::default)
+                .insert(key);
         }
-        self.depends.insert(key, resolve.crates.keys().cloned().collect());
+        self.depends
+            .insert(key, resolve.crates.keys().cloned().collect());
     }
 
-    fn compute_counts(&self, timestamp: DateTime, name: CrateName, num: Version, matchers: &[Matcher]) -> Row {
+    fn compute_counts(
+        &self,
+        timestamp: DateTime,
+        name: CrateName,
+        num: Version,
+        matchers: &[Matcher],
+    ) -> Row {
         let mut set = Set::default();
         Row {
             timestamp,
             name,
             num,
-            counts: matchers.iter()
+            counts: matchers
+                .iter()
                 .map(|matcher| {
                     set.clear();
                     for index in &matcher.nodes {
-                        let key = CrateKey { name: matcher.name, index: *index as u32 };
+                        let key = CrateKey {
+                            name: matcher.name,
+                            index: *index as u32,
+                        };
                         set.extend(self.reverse_depends[&key].iter().map(|key| key.name));
                     }
                     set.len()
@@ -193,22 +219,36 @@ impl ResolvedCrate {
 }
 
 impl Resolve {
-    fn add_crate(&mut self, universe: &Universe, key: CrateKey, default_features: bool, features: &[String]) {
+    fn add_crate(
+        &mut self,
+        universe: &Universe,
+        key: CrateKey,
+        default_features: bool,
+        features: &[String],
+    ) {
         let metadata = &universe.crates[&key.name][key.index as usize];
 
         debug!("adding crate {} {}", key.name, metadata.num);
 
         if !self.crates.contains_key(&key) {
-            let resolved = metadata.dependencies.iter()
+            let resolved = metadata
+                .dependencies
+                .iter()
                 .map(|dep| universe.resolve(&dep.name, &dep.req))
                 .collect::<Vec<_>>();
-            self.crates.insert(key, ResolvedCrate {
-                features: Set::default(),
-                resolved: resolved.clone(),
-            });
+            self.crates.insert(
+                key,
+                ResolvedCrate {
+                    features: Set::default(),
+                    resolved: resolved.clone(),
+                },
+            );
             for (dep, index) in metadata.dependencies.iter().zip(resolved) {
                 if !dep.optional && dep.kind != DependencyKind::Dev && index.is_some() {
-                    let key = CrateKey { name: crate_name(&*dep.name), index: index.unwrap() };
+                    let key = CrateKey {
+                        name: crate_name(&*dep.name),
+                        index: index.unwrap(),
+                    };
                     self.add_crate(universe, key, dep.default_features, &dep.features);
                 }
             }
@@ -229,7 +269,12 @@ impl Resolve {
     fn add_dep_or_crate_feature(&mut self, universe: &Universe, key: CrateKey, feature: &Feature) {
         let metadata = &universe.crates[&key.name][key.index as usize];
 
-        debug!("adding dep or feature {} {}:{}", key.name, metadata.num, feature);
+        debug!(
+            "adding dep or feature {} {}:{}",
+            key.name,
+            metadata.num,
+            feature
+        );
 
         match *feature {
             Feature::Current(ref feature) => {
@@ -242,14 +287,23 @@ impl Resolve {
                             println!("uh-oh");
                         }
                         if let Some(resolved) = self.crates[&key].resolved[i] {
-                            let key = CrateKey { name: crate_name(&**name), index: resolved };
+                            let key = CrateKey {
+                                name: crate_name(&**name),
+                                index: resolved,
+                            };
                             self.add_crate(universe, key, dep.default_features, &dep.features);
                             self.add_crate_feature(universe, key, feature);
                         }
                         return;
                     }
                 }
-                panic!("feature not found: {} {}:{}/{}", key.name, metadata.num, name, feature);
+                panic!(
+                    "feature not found: {} {}:{}/{}",
+                    key.name,
+                    metadata.num,
+                    name,
+                    feature
+                );
             }
         }
     }
@@ -257,7 +311,12 @@ impl Resolve {
     fn add_crate_feature(&mut self, universe: &Universe, key: CrateKey, feature: &str) {
         let metadata = &universe.crates[&key.name][key.index as usize];
 
-        if !self.crates.get_mut(&key).unwrap().features.insert(feature.to_owned()) {
+        if !self.crates
+            .get_mut(&key)
+            .unwrap()
+            .features
+            .insert(feature.to_owned())
+        {
             return;
         }
 
@@ -274,7 +333,10 @@ impl Resolve {
                         println!("uh-oh");
                     }
                     if let Some(resolved) = self.crates[&key].resolved[i] {
-                        let key = CrateKey { name: crate_name(feature), index: resolved };
+                        let key = CrateKey {
+                            name: crate_name(feature),
+                            index: resolved,
+                        };
                         self.add_crate(universe, key, dep.default_features, &dep.features);
                     }
                     return;
@@ -302,9 +364,11 @@ pub(crate) fn tally(flags: &Flags) -> Result<(), Error> {
     let pb = ProgressBar::hidden();
     if stderr_isatty() {
         pb.set_length(n * n);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("[{wide_bar:.cyan/blue}] {percent}%")
-            .progress_chars("&&."));
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{wide_bar:.cyan/blue}] {percent}%")
+                .progress_chars("&&."),
+        );
         pb.set_draw_target(ProgressDrawTarget::stderr());
     }
     for (i, event) in chronology.into_iter().enumerate() {
@@ -382,8 +446,9 @@ fn create_matchers(flags: &Flags) -> Result<Vec<Matcher>, Error> {
             req: match pieces.next().unwrap_or("*").parse() {
                 Ok(req) => req,
                 Err(err) => {
-                    return Err(failure::err_msg(format!(
-                        "Failed to parse series {}: {}", s, err)));
+                    return Err(failure::err_msg(
+                        format!("Failed to parse series {}: {}", s, err),
+                    ));
                 }
             },
             nodes: Vec::new(),
@@ -403,12 +468,14 @@ fn is_compatible(older: &Version, newer: &Version) -> bool {
                 major: older.major,
                 minor: Some(older.minor),
                 patch: Some(older.patch),
-                pre: older.pre.iter().map(|pre| {
-                    match *pre {
+                pre: older
+                    .pre
+                    .iter()
+                    .map(|pre| match *pre {
                         SemverId::Numeric(n) => ParseId::Numeric(n),
                         SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
-                    }
-                }).collect(),
+                    })
+                    .collect(),
             },
         ],
     };

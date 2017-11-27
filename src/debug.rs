@@ -17,11 +17,14 @@ impl<'a, I> CrateCollection<'a, I> {
 }
 
 impl<'a, I> Debug for CrateCollection<'a, I>
-    where I: Clone + IntoIterator<Item = &'a CrateKey>
+where
+    I: Clone + IntoIterator<Item = &'a CrateKey>,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         let universe = self.universe;
-        let crates = self.crates.clone().into_iter()
+        let crates = self.crates
+            .clone()
+            .into_iter()
             .map(|&key| DebugCrate { universe, key });
         formatter.debug_list().entries(crates).finish()
     }

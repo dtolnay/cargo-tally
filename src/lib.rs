@@ -55,8 +55,7 @@ pub struct Meta {
 
 #[derive(Deserialize, Debug)]
 pub struct Crate {
-    #[serde(rename = "crate")]
-    pub index: IndexCrate,
+    #[serde(rename = "crate")] pub index: IndexCrate,
     pub versions: Vec<CrateVersion>,
 }
 
@@ -67,8 +66,7 @@ pub struct Dependencies {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Dependency {
-    #[serde(rename = "crate_id")]
-    pub name: String,
+    #[serde(rename = "crate_id")] pub name: String,
     pub kind: DependencyKind,
     pub req: VersionReq,
     pub optional: bool,
@@ -99,7 +97,8 @@ pub enum Feature {
 
 impl<'de> Deserialize<'de> for Feature {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let mut s = String::deserialize(deserializer)?;
         Ok(match s.find('/') {
@@ -149,9 +148,11 @@ struct FileNotFoundError {
 
 impl Display for FileNotFoundError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter,
+        write!(
+            formatter,
             "file not found, run `cargo tally --init` to download: {}",
-            self.path.display())
+            self.path.display()
+        )
     }
 }
 
@@ -169,9 +170,7 @@ impl Display for Feature {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Feature::Current(ref feature) => write!(formatter, "{}", feature),
-            Feature::Dependency(ref name, ref feature) => {
-                write!(formatter, "{}/{}", name, feature)
-            }
+            Feature::Dependency(ref name, ref feature) => write!(formatter, "{}/{}", name, feature),
         }
     }
 }
@@ -180,7 +179,7 @@ fn cache<U, P, T>(endpoint: U, location: P) -> Result<T, Error>
 where
     U: AsRef<str>,
     P: AsRef<Path>,
-    T: DeserializeOwned
+    T: DeserializeOwned,
 {
     let location = location.as_ref();
     assert!(location.is_relative());
@@ -216,11 +215,9 @@ where
 
 fn download<T>(endpoint: &str) -> Result<T, Error>
 where
-    T: DeserializeOwned
+    T: DeserializeOwned,
 {
-    let mut url = Url::parse("https://crates.io")
-        .unwrap()
-        .join(endpoint)?;
+    let mut url = Url::parse("https://crates.io").unwrap().join(endpoint)?;
     url.query_pairs_mut()
         .append_pair("per_page", &PER_PAGE.to_string());
 
@@ -240,7 +237,8 @@ where
 
 #[cfg(feature = "cargo-clippy")]
 fn retry<F, R>(_f: F) -> R
-    where F: Fn() -> R
+where
+    F: Fn() -> R,
 {
     let _ = RETRIES;
     unimplemented!()
@@ -248,7 +246,8 @@ fn retry<F, R>(_f: F) -> R
 
 #[cfg(not(feature = "cargo-clippy"))]
 fn retry<F, T, E>(f: F) -> Result<T, E>
-    where F: Fn() -> Result<T, E>
+where
+    F: Fn() -> Result<T, E>,
 {
     #[allow(dead_code)]
     enum StaticAssert {
