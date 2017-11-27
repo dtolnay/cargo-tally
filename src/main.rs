@@ -15,6 +15,7 @@ extern crate lazy_static;
 extern crate log;
 
 extern crate cargo;
+extern crate cargo_tally;
 extern crate chrono;
 extern crate env_logger;
 extern crate failure;
@@ -38,8 +39,6 @@ use cargo::core::shell::Shell;
 use cargo::util::{Config, CargoError};
 
 use std::env;
-
-extern crate cargo_tally;
 
 mod csv;
 mod graph;
