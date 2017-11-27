@@ -1,8 +1,9 @@
 # Cargo tally
 
+<img alt="Number of crates that depend directly on Serde vs rustc-serialize" src="https://user-images.githubusercontent.com/1940490/33252731-c0787064-d2f4-11e7-8bc5-110e335a852b.png" width="30%"> <img alt="Number of crates that depend directly on each Serde version" src="https://user-images.githubusercontent.com/1940490/33252736-c86b65ce-d2f4-11e7-8b1b-4c740d30c180.png" width="30%"> <img alt="Fraction of crates.io that depends transitively on libc" src="https://user-images.githubusercontent.com/1940490/33252553-b71b9ec0-d2f3-11e7-8abf-720cf00ac3ce.png" width="30%">
+
 `cargo tally` is a Cargo subcommand for drawing graphs of the number of crates
-that depend directly or indirectly on a crate over time. **Scroll down for some
-graphs!**
+that depend directly or indirectly on a crate over time.
 
 ```
 Usage: cargo tally --init
