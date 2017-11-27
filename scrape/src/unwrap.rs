@@ -6,7 +6,8 @@ pub trait DisplayUnwrap {
 }
 
 impl<T, E> DisplayUnwrap for Result<T, E>
-    where E: Display
+where
+    E: Display,
 {
     type Output = T;
 
