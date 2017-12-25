@@ -52,7 +52,7 @@ pub(crate) fn init() -> Result<(), Error> {
     }
 
     let tracker = ProgressRead::new(&pb, tgz);
-    let decoder = GzDecoder::new(tracker)?;
+    let decoder = GzDecoder::new(tracker);
     let mut archive = Archive::new(decoder);
     archive.unpack(".")?;
 

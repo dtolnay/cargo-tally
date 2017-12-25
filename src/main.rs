@@ -84,7 +84,7 @@ fn main() {
     }
     builder.init().unwrap();
 
-    let config = match Config::default() {
+    let mut config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
             let mut shell = Shell::new();
@@ -103,7 +103,7 @@ fn main() {
                 .collect()
         );
         let rest = &args;
-        cargo::call_main_without_stdin(real_main, &config, USAGE, rest, false)
+        cargo::call_main_without_stdin(real_main, &mut config, USAGE, rest, false)
     })();
 
     match result {
@@ -112,7 +112,7 @@ fn main() {
     }
 }
 
-fn real_main(flags: Flags, _config: &Config) -> CliResult {
+fn real_main(flags: Flags, _config: &mut Config) -> CliResult {
     if flags.flag_version {
         println!("cargo-tally {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
