@@ -135,6 +135,10 @@ pub fn num_pages() -> Result<usize, Error> {
     Ok((total + PER_PAGE - 1) / PER_PAGE)
 }
 
+pub fn total_crates() -> Result<usize, Error> {
+    Ok(cache_index(1)?.meta.total)
+}
+
 #[derive(Debug, Fail)]
 #[fail(display = "download did not return success: {}", url)]
 struct DownloadError {
@@ -220,8 +224,6 @@ where
     let mut url = Url::parse("https://crates.io").unwrap().join(endpoint)?;
     url.query_pairs_mut()
         .append_pair("per_page", &PER_PAGE.to_string());
-
-    println!("{}", url);
 
     let mut resp = retry(|| {
         let resp = reqwest::get(url.clone())?;
