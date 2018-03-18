@@ -10,11 +10,13 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate failure;
+
 extern crate cargo;
 extern crate cargo_tally;
 extern crate chrono;
 extern crate env_logger;
-extern crate failure;
 extern crate flate2;
 extern crate fnv;
 extern crate gnuplot;
@@ -30,12 +32,11 @@ extern crate string_interner;
 extern crate tar;
 extern crate unindent;
 
-use cargo::{CliError, CliResult};
+use cargo::{CargoError, CliError, CliResult, Config};
 use cargo::core::shell::Shell;
-use cargo::util::{CargoError, Config};
-use env_logger::LogBuilder;
 
 use std::env;
+use std::io::Write;
 
 mod csv;
 mod debug;
@@ -77,12 +78,12 @@ struct Flags {
 }
 
 fn main() {
-    let mut builder = LogBuilder::new();
-    builder.format(|record| format!("{}", record.args()));
+    let mut builder = env_logger::Builder::new();
+    builder.format(|out, record| write!(out, "{}", record.args()));
     if let Ok(log_config) = env::var("TALLY_LOG") {
         builder.parse(&log_config);
     }
-    builder.init().unwrap();
+    builder.init();
 
     let mut config = match Config::default() {
         Ok(cfg) => cfg,
@@ -97,7 +98,7 @@ fn main() {
             env::args_os()
                 .map(|s| {
                     s.into_string().map_err(|s| {
-                        CargoError::from(format!("invalid unicode in argument: {:?}", s))
+                        CargoError::from(format_err!("invalid unicode in argument: {:?}", s))
                     })
                 })
                 .collect()

@@ -10,19 +10,19 @@ readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 
 [dependencies]
-cargo = "0.23"
+cargo = "0.25"
 chrono = { version = "0.4", features = ["serde"] }
 failure = "0.1"
 failure_derive = "0.1"
 flate2 = "1.0"
 fnv = "1.0"
 gnuplot = "0.0.24"
-indicatif = "0.8"
+indicatif = "0.9"
 isatty = "0.1"
 lazy_static = "1.0"
 log = "0.4"
-env_logger = "0.4"
-palette = "0.2"
+env_logger = "0.5"
+palette = "0.3"
 regex = "0.2"
 reqwest = "0.8"
 semver = { version = "0.9", features = ["serde"] }

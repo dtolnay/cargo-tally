@@ -6,5 +6,5 @@ publish = false
 
 [dependencies]
 cargo-tally = { path = ".." }
-rayon = "0.9"
-indicatif = "0.8"
+rayon = "1.0"
+indicatif = "0.9"
