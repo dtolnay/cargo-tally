@@ -26,7 +26,7 @@ fn main() {
 
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{wide_bar:.cyan/blue}] {percent}% elapsed: {elapsed_precise} eta: {eta_precise}")
+            .template("\ncrate: {prefix}\nversion: {msg}\n[{wide_bar:.cyan/blue}] {percent}%")
             .progress_chars("&&."),
     );
 
@@ -62,6 +62,8 @@ fn init_crate<'a>(s: &Scope<'a>, k: &Crate, pb: &'a ProgressBar) {
         let name = k.index.name.clone();
         let num = version.num.clone();
         s.spawn(move |_s| {
+            pb.set_prefix(&name);
+            pb.set_message(&num.to_string());
             cache_dependencies(&name, &num).display_unwrap();
             pb.inc(1);
         });
