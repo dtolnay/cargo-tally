@@ -4,8 +4,7 @@ use gnuplot::{AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix
               LineWidth, MinorScale, Placement};
 
 use palette;
-use palette::Hue;
-use palette::LinSrgb as Srgb;
+use palette::{Hue, Srgb};
 
 use Flags;
 use tally::Row;
@@ -14,11 +13,11 @@ use cargo_tally::DateTime;
 pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
     let mut colors = Vec::new();
     let mut captions = Vec::new();
-    let primary: palette::Color = Srgb::new_u8(200, 80, 40).into();
+    let primary: palette::Color = Srgb::new_u8(200, 80, 40).into_linear().into();
     let n = flags.arg_crate.len();
     for i in 0..n {
         let linear = primary.shift_hue((360.0 * (i as f32) / (n as f32)).into());
-        let srgb = Srgb::from(linear);
+        let srgb = Srgb::from_linear(linear.into());
         let red = (srgb.red * 256.0) as u8;
         let green = (srgb.green * 256.0) as u8;
         let blue = (srgb.blue * 256.0) as u8;
