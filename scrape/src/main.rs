@@ -9,7 +9,6 @@ use std::env;
 extern crate indicatif;
 use indicatif::{ProgressBar, ProgressStyle};
 
-
 mod unwrap;
 use unwrap::DisplayUnwrap;
 
