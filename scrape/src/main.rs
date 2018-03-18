@@ -17,8 +17,8 @@ const THREADS: usize = 24;
 
 fn main() {
     env::set_var("ALLOW_DOWNLOAD", "");
-    let config = rayon::Configuration::new().num_threads(THREADS);
-    rayon::initialize(config).unwrap();
+    let thread_pool = rayon::ThreadPoolBuilder::new().num_threads(THREADS);
+    thread_pool.build_global().unwrap();
 
     let len = total_crates().display_unwrap();
     let pb = ProgressBar::new(len as u64);

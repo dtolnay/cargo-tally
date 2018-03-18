@@ -5,7 +5,7 @@ use gnuplot::{AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix
 
 use palette;
 use palette::Hue;
-use palette::pixel::Srgb;
+use palette::LinSrgb as Srgb;
 
 use Flags;
 use tally::Row;
@@ -18,7 +18,7 @@ pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
     let n = flags.arg_crate.len();
     for i in 0..n {
         let linear = primary.shift_hue((360.0 * (i as f32) / (n as f32)).into());
-        let srgb = Srgb::from_linear(linear);
+        let srgb = Srgb::from(linear);
         let red = (srgb.red * 256.0) as u8;
         let green = (srgb.green * 256.0) as u8;
         let blue = (srgb.blue * 256.0) as u8;
