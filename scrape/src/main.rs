@@ -18,7 +18,7 @@ fn main() {
     env::set_var("ALLOW_DOWNLOAD", "");
     let config = rayon::Configuration::new().num_threads(THREADS);
     rayon::initialize(config).unwrap();
-    let pb = ProgressBar::new(total_crates().unwrap() as u64);
+    let pb = ProgressBar::new(total_crates().display_unwrap() as u64);
 
     pb.set_style(
         ProgressStyle::default_bar()
