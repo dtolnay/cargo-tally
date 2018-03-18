@@ -23,7 +23,7 @@ cargo install cargo-tally
 cargo tally --init
 ```
 
-- There is a one-time setup step that downloads and extracts a 15 MB tarball of
+- There is a one-time setup step that downloads and extracts an 18 MB tarball of
   crates.io metadata into a directory called `tally` within the current
   directory. Subsequent queries read from this cached data and do not query
   crates.io.
