@@ -5,7 +5,6 @@ extern crate rayon;
 use rayon::Scope;
 
 use std::env;
-use std::sync::Arc;
 
 extern crate indicatif;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -20,7 +19,7 @@ fn main() {
     env::set_var("ALLOW_DOWNLOAD", "");
     let config = rayon::Configuration::new().num_threads(THREADS);
     rayon::initialize(config).unwrap();
-    let pb = Arc::new(ProgressBar::new(total_crates().unwrap() as u64));
+    let pb = ProgressBar::new(total_crates().unwrap() as u64);
 
     pb.set_style(
         ProgressStyle::default_bar()
@@ -28,17 +27,13 @@ fn main() {
             .progress_chars("&&."),
     );
 
-    {
-        let pb = pb.clone();
-        rayon::scope(move |s| init_index(s, pb));
-    }
+    rayon::scope(|s| init_index(s, &pb));
     pb.finish_and_clear();
 }
 
-fn init_index(s: &Scope, pb: Arc<ProgressBar>) {
+fn init_index<'a>(s: &Scope<'a>, pb: &'a ProgressBar) {
     let npages = num_pages().display_unwrap();
     for p in 1..npages + 1 {
-        let pb = pb.clone();
         s.spawn(move |s| {
             let page = cache_index(p).display_unwrap();
             init_page(s, &page, pb);
@@ -46,10 +41,9 @@ fn init_index(s: &Scope, pb: Arc<ProgressBar>) {
     }
 }
 
-fn init_page(s: &Scope, page: &IndexPage, pb: Arc<ProgressBar>) {
+fn init_page<'a>(s: &Scope<'a>, page: &IndexPage, pb: &'a ProgressBar) {
     for krate in &page.crates {
         let name = krate.name.clone();
-        let pb = pb.clone();
         s.spawn(move |s| {
             let k = cache_crate(&name).display_unwrap();
             pb.inc(1);
