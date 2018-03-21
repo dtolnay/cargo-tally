@@ -1,5 +1,4 @@
 **/*.rs.bk
 /graphs/
 /tally/
-Cargo.lock
 target/
