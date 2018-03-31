@@ -32,9 +32,9 @@ cargo tally --init
   column for each crate being tallied. Pass the `--graph` flag with a title,
   like `--graph "Exponential growth!"`, to pop open `gnuplot` with a line graph.
   Requires `gnuplot` to be present in your $PATH. On Ubuntu I was able to
-  install this with `sudo apt install gnuplot`. If you can't get that working,
-  you can always run without `--graph` and make your own graphs in Excel or
-  Gnumeric.
+  install this with `sudo apt install gnuplot`. On macOS you want `brew install
+  gnuplot --with-qt`. If you can't get that working, you can always run without
+  `--graph` and make your own graphs in Excel or Gnumeric.
 
 - The tally command accepts a list of which crates to tally. This can either be
   the name of a crate like `serde` or a name with arbitrary semver version
