@@ -55,7 +55,8 @@ pub struct Meta {
 
 #[derive(Deserialize, Debug)]
 pub struct Crate {
-    #[serde(rename = "crate")] pub index: IndexCrate,
+    #[serde(rename = "crate")]
+    pub index: IndexCrate,
     pub versions: Vec<CrateVersion>,
 }
 
@@ -66,7 +67,8 @@ pub struct Dependencies {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Dependency {
-    #[serde(rename = "crate_id")] pub name: String,
+    #[serde(rename = "crate_id")]
+    pub name: String,
     pub kind: DependencyKind,
     pub req: VersionReq,
     pub optional: bool,

@@ -1,5 +1,7 @@
-#![cfg_attr(feature = "cargo-clippy",
-            allow(let_and_return, map_entry, needless_pass_by_value, redundant_closure_call))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(let_and_return, map_entry, needless_pass_by_value, redundant_closure_call)
+)]
 
 #[macro_use]
 extern crate serde_derive;
@@ -32,8 +34,8 @@ extern crate string_interner;
 extern crate tar;
 extern crate unindent;
 
-use cargo::{CargoError, CliError, CliResult, Config};
 use cargo::core::shell::Shell;
+use cargo::{CargoError, CliError, CliResult, Config};
 
 use std::env;
 use std::io::Write;
