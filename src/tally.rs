@@ -1,5 +1,5 @@
-use cargo_tally::{DateTime, Dependency, DependencyKind, Feature};
 use cargo_tally::{cache_crate, cache_dependencies, cache_index, num_pages};
+use cargo_tally::{DateTime, Dependency, DependencyKind, Feature};
 use csv::print_csv;
 use debug::CrateCollection;
 use failure::{self, Error};
@@ -273,9 +273,7 @@ impl Resolve {
 
         debug!(
             "adding dep or feature {} {}:{}",
-            key.name,
-            metadata.num,
-            feature
+            key.name, metadata.num, feature
         );
 
         match *feature {
@@ -298,10 +296,7 @@ impl Resolve {
                 }
                 panic!(
                     "feature not found: {} {}:{}/{}",
-                    key.name,
-                    metadata.num,
-                    name,
-                    feature
+                    key.name, metadata.num, name, feature
                 );
             }
         }
@@ -442,9 +437,10 @@ fn create_matchers(flags: &Flags) -> Result<Vec<Matcher>, Error> {
             req: match pieces.next().unwrap_or("*").parse() {
                 Ok(req) => req,
                 Err(err) => {
-                    return Err(failure::err_msg(
-                        format!("Failed to parse series {}: {}", s, err),
-                    ));
+                    return Err(failure::err_msg(format!(
+                        "Failed to parse series {}: {}",
+                        s, err
+                    )));
                 }
             },
             nodes: Vec::new(),
@@ -458,21 +454,19 @@ fn compatible_req(version: &Version) -> VersionReq {
     use semver::Identifier as SemverId;
     use semver_parser::version::Identifier as ParseId;
     VersionReq::from(range::VersionReq {
-        predicates: vec![
-            Predicate {
-                op: Compatible,
-                major: version.major,
-                minor: Some(version.minor),
-                patch: Some(version.patch),
-                pre: version
-                    .pre
-                    .iter()
-                    .map(|pre| match *pre {
-                        SemverId::Numeric(n) => ParseId::Numeric(n),
-                        SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
-                    })
-                    .collect(),
-            },
-        ],
+        predicates: vec![Predicate {
+            op: Compatible,
+            major: version.major,
+            minor: Some(version.minor),
+            patch: Some(version.patch),
+            pre: version
+                .pre
+                .iter()
+                .map(|pre| match *pre {
+                    SemverId::Numeric(n) => ParseId::Numeric(n),
+                    SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
+                })
+                .collect(),
+        }],
     })
 }

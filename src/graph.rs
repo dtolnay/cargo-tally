@@ -6,9 +6,9 @@ use gnuplot::{AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix
 use palette;
 use palette::{Hue, Srgb};
 
-use Flags;
-use tally::Row;
 use cargo_tally::DateTime;
+use tally::Row;
+use Flags;
 
 pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
     let mut colors = Vec::new();

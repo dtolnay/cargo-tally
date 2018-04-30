@@ -1,7 +1,7 @@
 use std::env;
 
-use Flags;
 use tally::Row;
+use Flags;
 
 pub(crate) fn print_csv(flags: &Flags, table: &[Row]) {
     print!("timestamp");
