@@ -13,15 +13,12 @@ use Flags;
 pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
     let mut colors = Vec::new();
     let mut captions = Vec::new();
-    let primary: palette::Color = Srgb::new_u8(200, 80, 40).into_linear().into();
+    let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
     let n = flags.arg_crate.len();
     for i in 0..n {
-        let linear = primary.shift_hue((360.0 * (i as f32) / (n as f32)).into());
-        let srgb = Srgb::from_linear(linear.into());
-        let red = (srgb.red * 256.0) as u8;
-        let green = (srgb.green * 256.0) as u8;
-        let blue = (srgb.blue * 256.0) as u8;
-        let hex = format!("#{:02X}{:02X}{:02X}", red, green, blue);
+        let linear = primary.shift_hue(360.0 * ((i + 1) as f32) / (n as f32));
+        let srgb = Srgb::from_linear(linear.into()).into_format::<u8>();
+        let hex = format!("#{:02X}{:02X}{:02X}", srgb.red, srgb.green, srgb.blue);
         colors.push(hex);
         captions.push(flags.arg_crate[i].replace('_', "\\\\_"));
     }
