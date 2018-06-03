@@ -4,21 +4,19 @@
 )]
 
 #[macro_use]
-extern crate serde_derive;
-
-#[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
 extern crate log;
 
 #[macro_use]
-extern crate failure;
+extern crate structopt;
 
 extern crate cargo;
 extern crate cargo_tally;
 extern crate chrono;
 extern crate env_logger;
+extern crate failure;
 extern crate flate2;
 extern crate fnv;
 extern crate gnuplot;
@@ -35,7 +33,9 @@ extern crate tar;
 extern crate unindent;
 
 use cargo::core::shell::Shell;
-use cargo::{CargoError, CliError, CliResult, Config};
+use cargo::{CliError, CliResult, Config};
+use structopt::StructOpt;
+use structopt::clap::AppSettings;
 
 use std::env;
 use std::io::Write;
@@ -51,32 +51,45 @@ mod tally;
 use init::init;
 use tally::tally;
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-const USAGE: &str = "
-Tally the number of crates that depend on a group of crates over time.
+#[derive(StructOpt)]
+#[structopt(bin_name = "cargo", author = "1")]
+enum Opts {
+    #[structopt(
+        name = "tally",
+        raw(
+            setting = "AppSettings::UnifiedHelpMessage",
+            setting = "AppSettings::DeriveDisplayOrder",
+            setting = "AppSettings::DontCollapseArgsInUsage"
+        )
+    )]
+    /// Tally the number of crates that depend on a group of crates over time.
+    Tally(Args),
+}
 
-Usage: cargo tally --init
-       cargo tally [options] <crate>...
-       cargo tally (--help | --version)
+#[derive(StructOpt)]
+struct Args {
+    /// Download tarball of crates.io metadata
+    #[structopt(long = "init")]
+    init: bool,
 
-Options:
-    -h, --help        Print this message
-    -V, --version     Print version info and exit
-    --graph TITLE     Display line graph using gnuplot, rather than dump csv
-    --relative        Display as a fraction of total crates, not absolute number
-    --transitive      Count transitive dependencies, not just direct dependencies
-    --exclude REGEX   Ignore a dependency coming from any crates matching regex
-";
+    /// Display line graph using gnuplot, rather than dump csv
+    #[structopt(long = "graph", value_name = "TITLE")]
+    title: Option<String>,
 
-#[derive(Deserialize, Debug)]
-struct Flags {
-    flag_init: bool,
-    arg_crate: Vec<String>,
-    flag_version: bool,
-    flag_graph: Option<String>,
-    flag_relative: bool,
-    flag_transitive: bool,
-    flag_exclude: Option<String>,
+    /// Display as a fraction of total crates, not absolute number
+    #[structopt(long = "relative")]
+    relative: bool,
+
+    /// Count transitive dependencies, not just direct dependencies
+    #[structopt(long = "transitive")]
+    transitive: bool,
+
+    /// Ignore a dependency coming from any crates matching regex
+    #[structopt(long = "exclude", value_name = "REGEX")]
+    exclude: Option<String>,
+
+    #[structopt(name = "CRATE")]
+    crates: Vec<String>,
 }
 
 fn main() {
@@ -95,36 +108,19 @@ fn main() {
         }
     };
 
-    let result = (|| {
-        let args: Vec<_> = try!(
-            env::args_os()
-                .map(|s| {
-                    s.into_string().map_err(|s| {
-                        CargoError::from(format_err!("invalid unicode in argument: {:?}", s))
-                    })
-                })
-                .collect()
-        );
-        let rest = &args;
-        cargo::call_main_without_stdin(real_main, &mut config, USAGE, rest, false)
-    })();
-
-    match result {
-        Err(e) => cargo::exit_with_error(e, &mut *config.shell()),
-        Ok(()) => {}
+    let Opts::Tally(args) = Opts::from_args();
+ 
+    if let Err(e) = real_main(args, &mut config) {
+        let mut shell = Shell::new();
+        cargo::exit_with_error(e.into(), &mut shell)
     }
 }
 
-fn real_main(flags: Flags, _config: &mut Config) -> CliResult {
-    if flags.flag_version {
-        println!("cargo-tally {}", env!("CARGO_PKG_VERSION"));
-        return Ok(());
-    }
-
-    let result = if flags.flag_init {
+fn real_main(args: Args, _config: &mut Config) -> CliResult {
+    let result = if args.init {
         init()
     } else {
-        tally(&flags)
+        tally(&args)
     };
 
     match result {

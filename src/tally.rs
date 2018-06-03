@@ -14,7 +14,7 @@ use semver_parser::range::Op::Compatible;
 use semver_parser::range::{self, Predicate};
 use std::u64;
 
-use Flags;
+use Args;
 
 #[derive(Debug)]
 pub(crate) struct Universe {
@@ -343,12 +343,12 @@ impl Resolve {
     }
 }
 
-pub(crate) fn tally(flags: &Flags) -> Result<(), Error> {
-    let mut chronology = load_data(flags)?;
+pub(crate) fn tally(args: &Args) -> Result<(), Error> {
+    let mut chronology = load_data(args)?;
     chronology.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
-    let mut universe = Universe::new(flags.flag_transitive);
-    let mut matchers = create_matchers(flags)?;
+    let mut universe = Universe::new(args.transitive);
+    let mut matchers = create_matchers(args)?;
     let mut table = Vec::<Row>::new();
 
     let n = chronology.len() as u64;
@@ -387,19 +387,19 @@ pub(crate) fn tally(flags: &Flags) -> Result<(), Error> {
         return Err(failure::err_msg("nothing found for this crate"));
     }
 
-    if flags.flag_graph.is_some() {
-        draw_graph(flags, &table);
+    if args.title.is_some() {
+        draw_graph(args, &table);
     } else {
-        print_csv(flags, &table);
+        print_csv(args, &table);
     }
 
     Ok(())
 }
 
-fn load_data(flags: &Flags) -> Result<Vec<Event>, Error> {
+fn load_data(args: &Args) -> Result<Vec<Event>, Error> {
     let mut chronology = Vec::new();
 
-    let exclude = match flags.flag_exclude {
+    let exclude = match args.exclude {
         Some(ref exclude) => Some(Regex::new(exclude)?),
         None => None,
     };
@@ -427,10 +427,10 @@ fn load_data(flags: &Flags) -> Result<Vec<Event>, Error> {
     Ok(chronology)
 }
 
-fn create_matchers(flags: &Flags) -> Result<Vec<Matcher>, Error> {
+fn create_matchers(args: &Args) -> Result<Vec<Matcher>, Error> {
     let mut matchers = Vec::new();
 
-    for s in &flags.arg_crate {
+    for s in &args.crates {
         let mut pieces = s.splitn(2, ':');
         matchers.push(Matcher {
             name: crate_name(pieces.next().unwrap()),

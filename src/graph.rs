@@ -8,26 +8,26 @@ use palette::{Hue, Srgb};
 
 use cargo_tally::DateTime;
 use tally::Row;
-use Flags;
+use Args;
 
-pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
+pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
     let mut colors = Vec::new();
     let mut captions = Vec::new();
     let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
-    let n = flags.arg_crate.len();
+    let n = args.crates.len();
     for i in 0..n {
         let linear = primary.shift_hue(360.0 * ((i + 1) as f32) / (n as f32));
         let srgb = Srgb::from_linear(linear.into()).into_format::<u8>();
         let hex = format!("#{:02X}{:02X}{:02X}", srgb.red, srgb.green, srgb.blue);
         colors.push(hex);
-        captions.push(flags.arg_crate[i].replace('_', "\\\\_"));
+        captions.push(args.crates[i].replace('_', "\\\\_"));
     }
 
     let mut fg = Figure::new();
     {
         // Create plot
         let axes = fg.axes2d();
-        axes.set_title(flags.flag_graph.as_ref().unwrap(), &[]);
+        axes.set_title(args.title.as_ref().unwrap(), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
             Fix(float_year(&Utc::now()) + 0.15),
@@ -49,7 +49,7 @@ pub(crate) fn draw_graph(flags: &Flags, table: &[Row]) {
 
         // Create series
         for i in 0..n {
-            if flags.flag_relative {
+            if args.relative {
                 let mut y = Vec::new();
                 for row in table {
                     y.push(row.counts[i] as f32 / row.total as f32);
