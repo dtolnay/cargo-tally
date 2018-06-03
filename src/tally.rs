@@ -305,7 +305,8 @@ impl Resolve {
     fn add_crate_feature(&mut self, universe: &Universe, key: CrateKey, feature: &str) {
         let metadata = &universe.crates[&key.name][key.index as usize];
 
-        if !self.crates
+        if !self
+            .crates
             .get_mut(&key)
             .unwrap()
             .features

@@ -1,6 +1,9 @@
 #![cfg_attr(
     feature = "cargo-clippy",
-    allow(let_and_return, map_entry, needless_pass_by_value, redundant_closure_call, unreadable_literal)
+    allow(
+        let_and_return, map_entry, needless_pass_by_value, redundant_closure_call,
+        unreadable_literal
+    )
 )]
 
 #[macro_use]
@@ -34,8 +37,8 @@ extern crate unindent;
 
 use cargo::core::shell::Shell;
 use cargo::{CliError, CliResult, Config};
-use structopt::StructOpt;
 use structopt::clap::AppSettings;
+use structopt::StructOpt;
 
 use std::env;
 use std::io::Write;
@@ -109,7 +112,7 @@ fn main() {
     };
 
     let Opts::Tally(args) = Opts::from_args();
- 
+
     if let Err(e) = real_main(args, &mut config) {
         let mut shell = Shell::new();
         cargo::exit_with_error(e, &mut shell)
@@ -117,11 +120,7 @@ fn main() {
 }
 
 fn real_main(args: Args, _config: &mut Config) -> CliResult {
-    let result = if args.init {
-        init()
-    } else {
-        tally(&args)
-    };
+    let result = if args.init { init() } else { tally(&args) };
 
     match result {
         Ok(()) => Ok(()),
