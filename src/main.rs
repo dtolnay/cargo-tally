@@ -88,7 +88,7 @@ struct Args {
     #[structopt(long = "exclude", value_name = "REGEX")]
     exclude: Option<String>,
 
-    #[structopt(name = "CRATE")]
+    #[structopt(name = "CRATE", raw(required = "true"))]
     crates: Vec<String>,
 }
 
