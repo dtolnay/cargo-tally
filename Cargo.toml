@@ -10,7 +10,7 @@ readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 
 [dependencies]
-cargo = "0.26"
+cargo = "0.27"
 chrono = { version = "0.4", features = ["serde"] }
 failure = "0.1"
 failure_derive = "0.1"
@@ -31,6 +31,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 string-interner = "0.6"
+structopt = "0.2"
 tar = "0.4"
 unindent = "0.1"
 url = "1.6"

@@ -1,11 +1,11 @@
 use std::env;
 
 use tally::Row;
-use Flags;
+use Args;
 
-pub(crate) fn print_csv(flags: &Flags, table: &[Row]) {
+pub(crate) fn print_csv(args: &Args, table: &[Row]) {
     print!("timestamp");
-    for s in &flags.arg_crate {
+    for s in &args.crates {
         print!(",{}", s);
     }
     println!();
@@ -18,7 +18,7 @@ pub(crate) fn print_csv(flags: &Flags, table: &[Row]) {
             print!(",{}:{}", row.name, row.num);
         }
         for &column in &row.counts {
-            if flags.flag_relative {
+            if args.relative {
                 print!(",{}", column as f32 / row.total as f32);
             } else {
                 print!(",{}", column);
