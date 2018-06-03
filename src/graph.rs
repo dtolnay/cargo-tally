@@ -1,7 +1,9 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
-use gnuplot::{AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph,
-              LineWidth, MinorScale, Placement};
+use gnuplot::{
+    AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph, LineWidth,
+    MinorScale, Placement,
+};
 
 use palette;
 use palette::{Hue, Srgb};

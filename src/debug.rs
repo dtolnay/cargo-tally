@@ -22,7 +22,8 @@ where
 {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         let universe = self.universe;
-        let crates = self.crates
+        let crates = self
+            .crates
             .clone()
             .into_iter()
             .map(|&key| DebugCrate { universe, key });
