@@ -42,6 +42,7 @@ use structopt::StructOpt;
 
 use std::env;
 use std::io::Write;
+use std::process;
 
 mod csv;
 mod debug;
@@ -62,7 +63,7 @@ enum Opts {
         raw(
             setting = "AppSettings::UnifiedHelpMessage",
             setting = "AppSettings::DeriveDisplayOrder",
-            setting = "AppSettings::DontCollapseArgsInUsage"
+            setting = "AppSettings::DontCollapseArgsInUsage",
         )
     )]
     /// Tally the number of crates that depend on a group of crates over time.
@@ -91,7 +92,7 @@ struct Args {
     #[structopt(long = "exclude", value_name = "REGEX")]
     exclude: Option<String>,
 
-    #[structopt(name = "CRATE", raw(required = "true"))]
+    #[structopt(name = "CRATE")]
     crates: Vec<String>,
 }
 
@@ -111,7 +112,13 @@ fn main() {
         }
     };
 
-    let Opts::Tally(args) = Opts::from_args();
+    let app = Opts::clap();
+    let matches = app.get_matches();
+    let Opts::Tally(args) = Opts::from_clap(&matches);
+    if !args.init && args.crates.is_empty() {
+        Opts::from_iter(&["cargo", "tally", "--help"]);
+        process::exit(1);
+    }
 
     if let Err(e) = real_main(args, &mut config) {
         let mut shell = Shell::new();
