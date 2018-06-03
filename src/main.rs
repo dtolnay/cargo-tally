@@ -1,6 +1,6 @@
 #![cfg_attr(
     feature = "cargo-clippy",
-    allow(let_and_return, map_entry, needless_pass_by_value, redundant_closure_call)
+    allow(let_and_return, map_entry, needless_pass_by_value, redundant_closure_call, unreadable_literal)
 )]
 
 #[macro_use]
@@ -112,7 +112,7 @@ fn main() {
  
     if let Err(e) = real_main(args, &mut config) {
         let mut shell = Shell::new();
-        cargo::exit_with_error(e.into(), &mut shell)
+        cargo::exit_with_error(e, &mut shell)
     }
 }
 
