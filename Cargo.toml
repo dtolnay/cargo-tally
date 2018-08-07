@@ -38,3 +38,6 @@ url = "1.6"
 
 [workspace]
 members = ["scrape"]
+
+[badges]
+travis-ci = { repository = "dtolnay/cargo-tally" }
