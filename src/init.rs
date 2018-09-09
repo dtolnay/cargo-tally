@@ -1,10 +1,11 @@
+use atty;
+use atty::Stream::Stderr;
+
 use failure::{self, Error};
 
 use flate2::read::GzDecoder;
 
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-
-use isatty::stderr_isatty;
 
 use progress::ProgressRead;
 
@@ -37,7 +38,7 @@ pub(crate) fn init() -> Result<(), Error> {
     let tgz = reqwest::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
-    if stderr_isatty() {
+    if atty::is(Stderr) {
         if let Some(&ContentLength(n)) = tgz.headers().get() {
             pb.set_length(n);
             pb.set_style(

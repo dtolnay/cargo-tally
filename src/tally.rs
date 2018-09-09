@@ -1,3 +1,5 @@
+use atty;
+use atty::Stream::Stderr;
 use cargo_tally::{cache_crate, cache_dependencies, cache_index, num_pages};
 use cargo_tally::{DateTime, Dependency, DependencyKind, Feature};
 use csv::print_csv;
@@ -7,7 +9,6 @@ use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use graph::draw_graph;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use intern::{crate_name, CrateName};
-use isatty::stderr_isatty;
 use regex::Regex;
 use semver::{Version, VersionReq};
 use semver_parser::range::Op::Compatible;
@@ -354,7 +355,7 @@ pub(crate) fn tally(args: &Args) -> Result<(), Error> {
 
     let n = chronology.len() as u64;
     let pb = ProgressBar::hidden();
-    if stderr_isatty() {
+    if atty::is(Stderr) {
         pb.set_length(n * n);
         pb.set_style(
             ProgressStyle::default_bar()
