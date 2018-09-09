@@ -15,6 +15,7 @@ extern crate log;
 #[macro_use]
 extern crate structopt;
 
+extern crate atty;
 extern crate cargo;
 extern crate cargo_tally;
 extern crate chrono;
@@ -24,7 +25,6 @@ extern crate flate2;
 extern crate fnv;
 extern crate gnuplot;
 extern crate indicatif;
-extern crate isatty;
 extern crate palette;
 extern crate regex;
 extern crate reqwest;
