@@ -11,7 +11,7 @@ include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-
 
 [dependencies]
 atty = "0.2"
-cargo = "0.27"
+cargo = "0.29"
 chrono = { version = "0.4", features = ["serde"] }
 failure = "0.1"
 failure_derive = "0.1"
