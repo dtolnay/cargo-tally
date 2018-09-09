@@ -5,7 +5,7 @@ rust:
   - nightly
   - beta
   - stable
-  - 1.24.0
+  - 1.25.0
 
 script:
   - cargo check
