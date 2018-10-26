@@ -295,10 +295,13 @@ impl Resolve {
                         return;
                     }
                 }
+                // FIXME https://github.com/dtolnay/cargo-tally/issues/22
+                /*
                 panic!(
                     "feature not found: {} {}:{}/{}",
                     key.name, metadata.num, name, feature
                 );
+                */
             }
         }
     }
