@@ -34,7 +34,7 @@ pub(crate) fn init() -> Result<(), Error> {
         ))));
     }
 
-    let snapshot = "https://github.com/dtolnay/cargo-tally/releases/download/2018-06-02/tally.tgz";
+    let snapshot = "https://github.com/dtolnay/cargo-tally/releases/download/2018-10-24/tally.tgz";
     let tgz = reqwest::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
