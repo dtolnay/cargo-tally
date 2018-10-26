@@ -1,6 +1,6 @@
 # Cargo tally
 
-<img alt="Number of crates that depend directly on Serde vs rustc-serialize" src="https://user-images.githubusercontent.com/1940490/33252731-c0787064-d2f4-11e7-8bc5-110e335a852b.png" width="30%"> <img alt="Number of crates that depend directly on each Serde version" src="https://user-images.githubusercontent.com/1940490/33252736-c86b65ce-d2f4-11e7-8b1b-4c740d30c180.png" width="30%"> <img alt="Fraction of crates.io that depends transitively on libc" src="https://user-images.githubusercontent.com/1940490/33252553-b71b9ec0-d2f3-11e7-8abf-720cf00ac3ce.png" width="30%">
+<img alt="Number of crates that depend directly on Serde vs rustc-serialize" src="https://user-images.githubusercontent.com/1940490/47555689-528c1500-d8c1-11e8-84e0-43b3efc14b08.png" width="30%"> <img alt="Number of crates that depend directly on each Serde version" src="https://user-images.githubusercontent.com/1940490/47555685-5029bb00-d8c1-11e8-84c4-6eaf8601f07b.png" width="30%"> <img alt="Fraction of crates.io that depends transitively on libc" src="https://user-images.githubusercontent.com/1940490/47555693-5455d880-d8c1-11e8-812e-ed38785c27c3.png" width="30%">
 
 **`cargo tally` is a Cargo subcommand for drawing graphs of the number of crates
 that depend directly or indirectly on a crate over time.**
@@ -67,9 +67,9 @@ cargo tally --init
 
 ---
 
-[serde-rustc-serialize]: https://user-images.githubusercontent.com/1940490/33252731-c0787064-d2f4-11e7-8bc5-110e335a852b.png
-[serde-versions]: https://user-images.githubusercontent.com/1940490/33252736-c86b65ce-d2f4-11e7-8b1b-4c740d30c180.png
-[transitive-libc]: https://user-images.githubusercontent.com/1940490/33252553-b71b9ec0-d2f3-11e7-8abf-720cf00ac3ce.png
+[serde-rustc-serialize]: https://user-images.githubusercontent.com/1940490/47555689-528c1500-d8c1-11e8-84e0-43b3efc14b08.png
+[serde-versions]: https://user-images.githubusercontent.com/1940490/47555685-5029bb00-d8c1-11e8-84c4-6eaf8601f07b.png
+[transitive-libc]: https://user-images.githubusercontent.com/1940490/47555693-5455d880-d8c1-11e8-812e-ed38785c27c3.png
 
 ## License
 
