@@ -10,7 +10,7 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use progress::ProgressRead;
 
 use reqwest;
-use reqwest::header::ContentLength;
+use reqwest::Response;
 
 use tar::Archive;
 
@@ -39,17 +39,7 @@ pub(crate) fn init() -> Result<(), Error> {
 
     let pb = ProgressBar::hidden();
     if atty::is(Stderr) {
-        if let Some(&ContentLength(n)) = tgz.headers().get() {
-            pb.set_length(n);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template(
-                        "[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
-                    )
-                    .progress_chars("&&."),
-            );
-            pb.set_draw_target(ProgressDrawTarget::stderr());
-        }
+        setup_pb(&pb, &tgz);
     }
 
     let tracker = ProgressRead::new(&pb, tgz);
@@ -59,4 +49,31 @@ pub(crate) fn init() -> Result<(), Error> {
 
     pb.finish_and_clear();
     Ok(())
+}
+
+fn setup_pb(pb: &ProgressBar, tgz: &Response) {
+    let content_length = match tgz.headers().get("Content-Length") {
+        Some(header) => header,
+        None => return,
+    };
+
+    let s = match content_length.to_str() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+
+    let n = match s.parse() {
+        Ok(n) => n,
+        Err(_) => return,
+    };
+
+    pb.set_length(n);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+            )
+            .progress_chars("&&."),
+    );
+    pb.set_draw_target(ProgressDrawTarget::stderr());
 }
