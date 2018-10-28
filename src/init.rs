@@ -70,9 +70,7 @@ fn setup_pb(pb: &ProgressBar, tgz: &Response) {
     pb.set_length(n);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template(
-                "[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
-            )
+            .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("&&."),
     );
     pb.set_draw_target(ProgressDrawTarget::stderr());

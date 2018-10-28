@@ -1,8 +1,11 @@
 #![cfg_attr(
     feature = "cargo-clippy",
     allow(
-        let_and_return, map_entry, needless_pass_by_value, redundant_closure_call,
-        unreadable_literal
+        let_and_return,
+        map_entry,
+        needless_pass_by_value,
+        redundant_closure_call,
+        unreadable_literal,
     )
 )]
 
