@@ -409,7 +409,7 @@ fn load_data(args: &Args) -> Result<Vec<Event>, Error> {
         None => None,
     };
 
-    for p in 1..num_pages()? + 1 {
+    for p in 1..=num_pages()? {
         for krate in cache_index(p)?.crates {
             if let Some(ref exclude) = exclude {
                 if exclude.is_match(&krate.name) {
