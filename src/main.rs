@@ -1,12 +1,9 @@
-#![cfg_attr(
-    feature = "cargo-clippy",
-    allow(
-        let_and_return,
-        map_entry,
-        needless_pass_by_value,
-        redundant_closure_call,
-        unreadable_literal,
-    )
+#![allow(
+    clippy::let_and_return,
+    clippy::map_entry,
+    clippy::needless_pass_by_value,
+    clippy::redundant_closure_call,
+    clippy::unreadable_literal,
 )]
 
 #[macro_use]
