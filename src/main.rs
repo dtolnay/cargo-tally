@@ -2,7 +2,6 @@
     clippy::let_and_return,
     clippy::map_entry,
     clippy::needless_pass_by_value,
-    clippy::redundant_closure_call,
     clippy::unreadable_literal,
 )]
 
