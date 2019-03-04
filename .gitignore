@@ -1,4 +1,5 @@
 **/*.rs.bk
 /graphs/
-/tally/
+/tally.json
+/tally.json.gz
 target/

@@ -23,10 +23,9 @@ cargo install cargo-tally
 cargo tally --init
 ```
 
-- There is a one-time setup step that downloads and extracts a 24 MB tarball of
-  crates.io metadata into a directory called `tally` within the current
-  directory. Subsequent queries read from this cached data and do not query
-  crates.io.
+- There is a one-time setup step that downloads a 6 MB json file of crates.io
+  metadata into a file called `tally.json.gz` within the current directory.
+  Subsequent queries read from this cached data and do not query crates.io.
 
 - By default `cargo tally` prints out a CSV with a timestamp column and one
   column for each crate being tallied. Pass the `--graph` flag with a title,

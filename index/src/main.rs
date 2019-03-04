@@ -1,10 +1,10 @@
 mod dir;
 mod error;
-mod json;
 
+use cargo_tally::Crate;
 use chrono::{NaiveDateTime, Utc};
-use flate2::Compression;
 use flate2::write::GzEncoder;
+use flate2::Compression;
 use git2::{Commit, Repository};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use lazy_static::lazy_static;
@@ -19,7 +19,6 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use crate::error::{Error, Result};
-use crate::json::Crate;
 
 const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
 
@@ -113,7 +112,7 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     let mut crates: Vec<Crate> = crates
         .into_iter()
         .filter_map(|mut krate| {
-            let key = (krate.name.clone(), krate.vers.clone());
+            let key = (krate.name.clone(), krate.version.clone());
             let timestamp = timestamps.get(&key)?;
             krate.published = Some(timestamp.clone());
             Some(krate)
@@ -121,7 +120,7 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
         .collect();
 
     fn sort_key(krate: &Crate) -> (&Option<DateTime>, &str, &Version) {
-        (&krate.published, &krate.name, &krate.vers)
+        (&krate.published, &krate.name, &krate.version)
     }
 
     crates.sort_by(|a, b| sort_key(a).cmp(&sort_key(b)));

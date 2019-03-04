@@ -1,58 +1,33 @@
-use atty;
-use atty::Stream::Stderr;
-
+use atty::{self, Stream::Stderr};
 use failure::{self, Error};
-
-use flate2::read::GzDecoder;
-
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use reqwest::{self, Response};
 
-use reqwest;
-use reqwest::Response;
-
-use tar::Archive;
-
-use unindent::unindent;
-
-use std::env;
-use std::path::Path;
+use std::fs::File;
+use std::io;
 
 use crate::progress::ProgressRead;
 
 pub(crate) fn init() -> Result<(), Error> {
-    let tally_path = Path::new("tally");
-    if tally_path.exists() {
-        let pwd = env::current_dir().unwrap_or_else(|_| Path::new(".").to_owned());
-        let helpful_path = pwd.join(tally_path);
-
-        return Err(failure::err_msg(unindent(&format!(
-            "
-            Already exists: {}
-            Remove and run `cargo tally --init` again.\
-        ",
-            helpful_path.display()
-        ))));
-    }
-
-    let snapshot = "https://github.com/dtolnay/cargo-tally/releases/download/2018-10-24/tally.tgz";
-    let tgz = reqwest::get(snapshot)?.error_for_status()?;
+    //let snapshot = "https://github.com/dtolnay/cargo-tally/releases/download/2018-10-24/tally.json.gz";
+    let snapshot = "https://github.com/dtolnay/cargo-tally/files/2924389/tally.json.gz";
+    let jsongz = reqwest::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
     if atty::is(Stderr) {
-        setup_pb(&pb, &tgz);
+        setup_pb(&pb, &jsongz);
     }
 
-    let tracker = ProgressRead::new(&pb, tgz);
-    let decoder = GzDecoder::new(tracker);
-    let mut archive = Archive::new(decoder);
-    archive.unpack(".")?;
+    let mut tracker = ProgressRead::new(&pb, jsongz);
+    let mut out = File::create("tally.json.gz")?;
+    io::copy(&mut tracker, &mut out)?;
 
     pb.finish_and_clear();
     Ok(())
 }
 
-fn setup_pb(pb: &ProgressBar, tgz: &Response) {
-    let content_length = match tgz.headers().get("Content-Length") {
+fn setup_pb(pb: &ProgressBar, resp: &Response) {
+    let content_length = match resp.headers().get("Content-Length") {
         Some(header) => header,
         None => return,
     };
