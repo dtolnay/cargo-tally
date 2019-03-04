@@ -19,7 +19,7 @@ pub(crate) fn init() -> Result<()> {
     }
 
     let mut tracker = ProgressRead::new(&pb, jsongz);
-    let mut out = File::create("tally.json.gz")?;
+    let mut out = File::create(cargo_tally::JSONFILE)?;
     io::copy(&mut tracker, &mut out)?;
 
     pb.finish_and_clear();
