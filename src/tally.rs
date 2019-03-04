@@ -1,22 +1,23 @@
-use atty;
-use atty::Stream::Stderr;
-use cargo_tally::{cache_crate, cache_dependencies, cache_index, num_pages};
-use cargo_tally::{DateTime, Dependency, DependencyKind, Feature};
+use atty::{self, Stream::Stderr};
+use cargo_tally::{Crate, DateTime, Dependency, DependencyKind, Feature};
 use failure::{self, Error};
+use flate2::read::GzDecoder;
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use log::{debug, info};
 use regex::Regex;
 use semver::{Version, VersionReq};
-use semver_parser::range::Op::Compatible;
-use semver_parser::range::{self, Predicate};
-use std::u64;
+use semver_parser::range::{self, Op::Compatible, Predicate};
 
 use crate::csv::print_csv;
 use crate::debug::CrateCollection;
 use crate::graph::draw_graph;
 use crate::intern::{crate_name, CrateName};
 use crate::Args;
+
+use std::fs::File;
+use std::io::Read;
+use std::u64;
 
 #[derive(Debug)]
 pub(crate) struct Universe {
@@ -410,24 +411,28 @@ fn load_data(args: &Args) -> Result<Vec<Event>, Error> {
         None => None,
     };
 
-    for p in 1..=num_pages()? {
-        for krate in cache_index(p)?.crates {
-            if let Some(ref exclude) = exclude {
-                if exclude.is_match(&krate.name) {
-                    continue;
-                }
-            }
-            let krate = cache_crate(&krate.name)?;
-            for version in krate.versions {
-                chronology.push(Event {
-                    name: crate_name(&*krate.index.name),
-                    num: version.num.clone(),
-                    timestamp: version.created_at,
-                    features: version.features,
-                    dependencies: cache_dependencies(&krate.index.name, &version.num)?.dependencies,
-                });
+    let file = File::open("tally.json.gz")?;
+    let mut decoder = GzDecoder::new(file);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    let de = serde_json::Deserializer::from_slice(&decompressed);
+
+    for line in de.into_iter::<Crate>() {
+        let krate = line?;
+
+        if let Some(exclude) = &exclude {
+            if exclude.is_match(&krate.name) {
+                continue;
             }
         }
+
+        chronology.push(Event {
+            name: crate_name(&*krate.name),
+            num: krate.version,
+            timestamp: krate.published.unwrap(),
+            features: krate.features,
+            dependencies: krate.dependencies,
+        });
     }
 
     Ok(chronology)
