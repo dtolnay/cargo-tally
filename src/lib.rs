@@ -1,29 +1,10 @@
-#[macro_use]
-extern crate serde_derive;
-
-#[macro_use]
-extern crate failure_derive;
-
-extern crate chrono;
-extern crate failure;
-extern crate fnv;
-extern crate reqwest;
-extern crate semver;
-extern crate serde;
-extern crate serde_json;
-extern crate url;
-
 use chrono::Utc;
-
-use failure::Error;
-
+use failure::{Error, Fail};
 use fnv::FnvHashMap as Map;
-
 use semver::{Version, VersionReq};
-
-use serde::de::{Deserialize, DeserializeOwned, Deserializer};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
-
 use url::Url;
 
 use std::env;

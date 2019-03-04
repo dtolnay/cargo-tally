@@ -8,9 +8,9 @@ use gnuplot::{
 use palette;
 use palette::{Hue, Srgb};
 
+use crate::tally::Row;
+use crate::Args;
 use cargo_tally::DateTime;
-use tally::Row;
-use Args;
 
 pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
     let mut colors = Vec::new();

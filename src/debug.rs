@@ -1,4 +1,4 @@
-use tally::{CrateKey, Universe};
+use crate::tally::{CrateKey, Universe};
 
 use std::fmt::{self, Debug};
 
