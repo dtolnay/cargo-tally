@@ -16,7 +16,6 @@ extern crate log;
 extern crate structopt;
 
 extern crate atty;
-extern crate cargo;
 extern crate cargo_tally;
 extern crate chrono;
 extern crate env_logger;
@@ -35,13 +34,11 @@ extern crate string_interner;
 extern crate tar;
 extern crate unindent;
 
-use cargo::core::shell::Shell;
-use cargo::{CliError, CliResult, Config};
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 
 use std::env;
-use std::io::Write;
+use std::io::{self, Write};
 use std::process;
 
 mod csv;
@@ -56,7 +53,7 @@ use init::init;
 use tally::tally;
 
 #[derive(StructOpt)]
-#[structopt(bin_name = "cargo", author = "1")]
+#[structopt(bin_name = "cargo")]
 enum Opts {
     #[structopt(
         name = "tally",
@@ -104,36 +101,16 @@ fn main() {
     }
     builder.init();
 
-    let mut config = match Config::default() {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            let mut shell = Shell::new();
-            cargo::exit_with_error(e.into(), &mut shell)
-        }
-    };
-
-    let app = Opts::clap();
-    let matches = app.get_matches();
-    let Opts::Tally(args) = Opts::from_clap(&matches);
+    let Opts::Tally(args) = Opts::from_args();
     if !args.init && args.crates.is_empty() {
         Opts::from_iter(&["cargo", "tally", "--help"]);
         process::exit(1);
     }
 
-    if let Err(e) = real_main(args, &mut config) {
-        let mut shell = Shell::new();
-        cargo::exit_with_error(e, &mut shell)
-    }
-}
-
-fn real_main(args: Args, _config: &mut Config) -> CliResult {
     let result = if args.init { init() } else { tally(&args) };
 
-    match result {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            eprintln!("{}", err);
-            Err(CliError::code(1))
-        }
+    if let Err(err) = result {
+        let _ = writeln!(io::stderr(), "{}", err);
+        process::exit(1);
     }
 }
