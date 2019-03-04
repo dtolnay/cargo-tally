@@ -171,7 +171,7 @@ fn write_json(crates: Vec<Crate>) -> Result<()> {
     }
 
     let gz = encoder.finish()?;
-    fs::write("tally.json.gz", gz)?;
+    fs::write(cargo_tally::JSONFILE, gz)?;
     Ok(())
 }
 

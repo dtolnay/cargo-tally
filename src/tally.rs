@@ -411,7 +411,7 @@ fn load_data(args: &Args) -> Result<Vec<Event>> {
         None => None,
     };
 
-    let file = File::open("tally.json.gz")?;
+    let file = File::open(cargo_tally::JSONFILE)?;
     let mut decoder = GzDecoder::new(file);
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed)?;
