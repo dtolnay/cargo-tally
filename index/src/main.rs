@@ -12,6 +12,7 @@ use regex::Regex;
 use semver::Version;
 use structopt::StructOpt;
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap as Map;
 use std::fs;
 use std::io::{self, Write};
@@ -78,7 +79,36 @@ fn setup_progress_bar(len: usize) -> ProgressBar {
     pb
 }
 
-type Timestamps = Map<(String, Version), DateTime>;
+#[derive(Eq)]
+struct Key {
+    name: String,
+    version: Version,
+}
+
+impl Ord for Key {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name
+            .cmp(&other.name)
+            .then_with(|| self.version.cmp(&other.version))
+            .then_with(|| self.version.build.cmp(&other.version.build))
+    }
+}
+
+impl PartialOrd for Key {
+    fn partial_cmp(&self, other: &Key) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Key {
+    fn eq(&self, other: &Key) -> bool {
+        self.name == other.name
+            && self.version == other.version
+            && self.version.build == other.version.build
+    }
+}
+
+type Timestamps = Map<Key, DateTime>;
 
 fn compute_timestamps(repo: Repository, pb: &ProgressBar) -> Result<Timestamps> {
     let mut timestamps = Map::new();
@@ -95,7 +125,7 @@ fn compute_timestamps(repo: Repository, pb: &ProgressBar) -> Result<Timestamps> 
                     let naive = NaiveDateTime::from_timestamp(seconds_from_epoch, 0);
                     let datetime = DateTime::from_utc(naive, Utc);
 
-                    let key = (name, version);
+                    let key = Key { name, version };
                     timestamps.entry(key).or_insert(datetime);
                 }
                 CommitType::Yank | CommitType::Unyank | CommitType::Manual => {}
@@ -112,7 +142,10 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     let mut crates: Vec<Crate> = crates
         .into_iter()
         .filter_map(|mut krate| {
-            let key = (krate.name.clone(), krate.version.clone());
+            let key = Key {
+                name: krate.name.clone(),
+                version: krate.version.clone(),
+            };
             let timestamp = timestamps.get(&key)?;
             krate.published = Some(timestamp.clone());
             Some(krate)
