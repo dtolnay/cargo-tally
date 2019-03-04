@@ -20,7 +20,11 @@ impl Display for Error {
         use self::Error::*;
 
         match self {
-            MissingJson => write!(f, "missing ./{}; run `cargo tally --init`", cargo_tally::JSONFILE),
+            MissingJson => write!(
+                f,
+                "missing ./{}; run `cargo tally --init`",
+                cargo_tally::JSONFILE
+            ),
             ParseSeries(s, err) => write!(f, "failed to parse series {}: {}", s, err),
             Io(err) => write!(f, "{}", err),
             Json(err) => write!(f, "{}", err),
