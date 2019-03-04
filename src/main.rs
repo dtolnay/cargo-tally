@@ -14,6 +14,7 @@ use std::process;
 
 mod csv;
 mod debug;
+mod error;
 mod graph;
 mod init;
 mod intern;

@@ -1,14 +1,14 @@
 use atty::{self, Stream::Stderr};
-use failure::{self, Error};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use reqwest::{self, Response};
 
 use std::fs::File;
 use std::io;
 
+use crate::error::Result;
 use crate::progress::ProgressRead;
 
-pub(crate) fn init() -> Result<(), Error> {
+pub(crate) fn init() -> Result<()> {
     //let snapshot = "https://github.com/dtolnay/cargo-tally/releases/download/2018-10-24/tally.json.gz";
     let snapshot = "https://github.com/dtolnay/cargo-tally/files/2924389/tally.json.gz";
     let jsongz = reqwest::get(snapshot)?.error_for_status()?;
