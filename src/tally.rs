@@ -1,6 +1,5 @@
 use atty::{self, Stream::Stderr};
 use cargo_tally::{Crate, DateTime, Dependency, DependencyKind, Feature};
-use failure::{self, Error};
 use flate2::read::GzDecoder;
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
@@ -11,6 +10,7 @@ use semver_parser::range::{self, Op::Compatible, Predicate};
 
 use crate::csv::print_csv;
 use crate::debug::CrateCollection;
+use crate::error::{Error, Result};
 use crate::graph::draw_graph;
 use crate::intern::{crate_name, CrateName};
 use crate::Args;
@@ -350,7 +350,7 @@ impl Resolve {
     }
 }
 
-pub(crate) fn tally(args: &Args) -> Result<(), Error> {
+pub(crate) fn tally(args: &Args) -> Result<()> {
     let mut chronology = load_data(args)?;
     chronology.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
@@ -391,7 +391,7 @@ pub(crate) fn tally(args: &Args) -> Result<(), Error> {
     }
     pb.finish_and_clear();
     if table.is_empty() {
-        return Err(failure::err_msg("nothing found for this crate"));
+        return Err(Error::NothingFound);
     }
 
     if args.title.is_some() {
@@ -403,7 +403,7 @@ pub(crate) fn tally(args: &Args) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_data(args: &Args) -> Result<Vec<Event>, Error> {
+fn load_data(args: &Args) -> Result<Vec<Event>> {
     let mut chronology = Vec::new();
 
     let exclude = match args.exclude {
@@ -438,7 +438,7 @@ fn load_data(args: &Args) -> Result<Vec<Event>, Error> {
     Ok(chronology)
 }
 
-fn create_matchers(args: &Args) -> Result<Vec<Matcher>, Error> {
+fn create_matchers(args: &Args) -> Result<Vec<Matcher>> {
     let mut matchers = Vec::new();
 
     for s in &args.crates {
@@ -447,12 +447,7 @@ fn create_matchers(args: &Args) -> Result<Vec<Matcher>, Error> {
             name: crate_name(pieces.next().unwrap()),
             req: match pieces.next().unwrap_or("*").parse() {
                 Ok(req) => req,
-                Err(err) => {
-                    return Err(failure::err_msg(format!(
-                        "Failed to parse series {}: {}",
-                        s, err
-                    )));
-                }
+                Err(err) => return Err(Error::ParseSeries(s.to_owned(), err)),
             },
             nodes: Vec::new(),
         });
