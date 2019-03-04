@@ -9,3 +9,4 @@ rust:
 
 script:
   - cargo check
+  - cargo check --manifest-path index/Cargo.toml
