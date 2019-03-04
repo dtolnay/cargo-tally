@@ -96,7 +96,8 @@ fn compute_timestamps(repo: Repository, pb: &ProgressBar) -> Result<Timestamps> 
                     let naive = NaiveDateTime::from_timestamp(seconds_from_epoch, 0);
                     let datetime = DateTime::from_utc(naive, Utc);
 
-                    timestamps.insert((name, version), datetime);
+                    let key = (name, version);
+                    timestamps.entry(key).or_insert(datetime);
                 }
                 CommitType::Yank | CommitType::Unyank | CommitType::Manual => {}
                 CommitType::Initial => break,
