@@ -2,37 +2,8 @@
     clippy::let_and_return,
     clippy::map_entry,
     clippy::needless_pass_by_value,
-    clippy::unreadable_literal,
+    clippy::unreadable_literal
 )]
-
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate log;
-
-#[allow(unused_imports)]
-#[macro_use]
-extern crate structopt;
-
-extern crate atty;
-extern crate cargo_tally;
-extern crate chrono;
-extern crate env_logger;
-extern crate failure;
-extern crate flate2;
-extern crate fnv;
-extern crate gnuplot;
-extern crate indicatif;
-extern crate palette;
-extern crate regex;
-extern crate reqwest;
-extern crate semver;
-extern crate semver_parser;
-extern crate serde;
-extern crate string_interner;
-extern crate tar;
-extern crate unindent;
 
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
@@ -49,8 +20,8 @@ mod intern;
 mod progress;
 mod tally;
 
-use init::init;
-use tally::tally;
+use crate::init::init;
+use crate::tally::tally;
 
 #[derive(StructOpt)]
 #[structopt(bin_name = "cargo")]

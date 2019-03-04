@@ -2,20 +2,21 @@ use atty;
 use atty::Stream::Stderr;
 use cargo_tally::{cache_crate, cache_dependencies, cache_index, num_pages};
 use cargo_tally::{DateTime, Dependency, DependencyKind, Feature};
-use csv::print_csv;
-use debug::CrateCollection;
 use failure::{self, Error};
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
-use graph::draw_graph;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use intern::{crate_name, CrateName};
+use log::{debug, info};
 use regex::Regex;
 use semver::{Version, VersionReq};
 use semver_parser::range::Op::Compatible;
 use semver_parser::range::{self, Predicate};
 use std::u64;
 
-use Args;
+use crate::csv::print_csv;
+use crate::debug::CrateCollection;
+use crate::graph::draw_graph;
+use crate::intern::{crate_name, CrateName};
+use crate::Args;
 
 #[derive(Debug)]
 pub(crate) struct Universe {

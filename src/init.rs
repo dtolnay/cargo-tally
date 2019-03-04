@@ -7,8 +7,6 @@ use flate2::read::GzDecoder;
 
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
-use progress::ProgressRead;
-
 use reqwest;
 use reqwest::Response;
 
@@ -18,6 +16,8 @@ use unindent::unindent;
 
 use std::env;
 use std::path::Path;
+
+use crate::progress::ProgressRead;
 
 pub(crate) fn init() -> Result<(), Error> {
     let tally_path = Path::new("tally");

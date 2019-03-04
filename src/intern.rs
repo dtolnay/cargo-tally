@@ -1,4 +1,5 @@
 use fnv::FnvBuildHasher;
+use lazy_static::lazy_static;
 use string_interner::{StringInterner, Symbol};
 
 use std::cell::UnsafeCell;
