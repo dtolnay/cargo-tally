@@ -2,7 +2,7 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
 use gnuplot::{
     AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph, LineWidth,
-    MinorScale, Placement,
+    MajorScale, Placement,
 };
 
 use palette;
@@ -35,7 +35,7 @@ pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
             Fix(float_year(&Utc::now()) + 0.15),
         );
         axes.set_y_range(Fix(0.0), Auto);
-        axes.set_x_ticks(Some((Fix(1.0), 12)), &[MinorScale(2.0)], &[]);
+        axes.set_x_ticks(Some((Fix(1.0), 12)), &[MajorScale(2.0)], &[]);
         axes.set_legend(
             Graph(0.05),
             Graph(0.9),
