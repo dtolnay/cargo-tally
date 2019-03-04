@@ -41,7 +41,7 @@ enum Opts {
 
 #[derive(StructOpt)]
 struct Args {
-    /// Download tarball of crates.io metadata
+    /// Download dump of crates.io metadata
     #[structopt(long = "init")]
     init: bool,
 
