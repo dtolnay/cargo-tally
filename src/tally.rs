@@ -17,6 +17,7 @@ use crate::Args;
 
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 use std::u64;
 
 #[derive(Debug)]
@@ -411,7 +412,12 @@ fn load_data(args: &Args) -> Result<Vec<Event>> {
         None => None,
     };
 
-    let file = File::open(cargo_tally::JSONFILE)?;
+    let json_path = Path::new(cargo_tally::JSONFILE);
+    if !json_path.exists() {
+        return Err(Error::MissingJson);
+    }
+
+    let file = File::open(json_path)?;
     let mut decoder = GzDecoder::new(file);
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed)?;

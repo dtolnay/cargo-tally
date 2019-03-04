@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use std::io;
 
 pub enum Error {
+    MissingJson,
     ParseSeries(String, ReqParseError),
     Io(io::Error),
     Json(serde_json::Error),
@@ -19,6 +20,7 @@ impl Display for Error {
         use self::Error::*;
 
         match self {
+            MissingJson => write!(f, "missing ./{}; run `cargo tally --init`", cargo_tally::JSONFILE),
             ParseSeries(s, err) => write!(f, "failed to parse series {}: {}", s, err),
             Io(err) => write!(f, "{}", err),
             Json(err) => write!(f, "{}", err),
