@@ -9,7 +9,8 @@ use crate::error::Result;
 use crate::progress::ProgressRead;
 
 pub(crate) fn init() -> Result<()> {
-    let snapshot = "https://github.com/dtolnay/cargo-tally/releases/download/2019-03-03/tally.json.gz";
+    let snapshot =
+        "https://github.com/dtolnay/cargo-tally/releases/download/2019-03-03/tally.json.gz";
     let jsongz = reqwest::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
