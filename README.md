@@ -64,23 +64,23 @@ cargo tally --init
 
 ![Fraction of crates.io that depends transitively on libc][transitive-libc]
 
----
-
 [serde-rustc-serialize]: https://user-images.githubusercontent.com/1940490/47555689-528c1500-d8c1-11e8-84e0-43b3efc14b08.png
 [serde-versions]: https://user-images.githubusercontent.com/1940490/47555685-5029bb00-d8c1-11e8-84c4-6eaf8601f07b.png
 [transitive-libc]: https://user-images.githubusercontent.com/1940490/47555693-5455d880-d8c1-11e8-812e-ed38785c27c3.png
 
-## License
+<br>
 
-Licensed under either of
+#### License
 
- * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
- * MIT license ([LICENSE-MIT](LICENSE-MIT))
+<sup>
+Licensed under either of <a href="LICENSE-APACHE">Apache License, Version
+2.0</a> or <a href="LICENSE-MIT">MIT license</a> at your option.
+</sup>
 
-at your option.
+<br>
 
-### Contribution
-
+<sub>
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in this project by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
+</sub>
