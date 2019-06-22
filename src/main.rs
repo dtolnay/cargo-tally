@@ -69,7 +69,7 @@ fn main() {
     let mut builder = env_logger::Builder::new();
     builder.format(|out, record| write!(out, "{}", record.args()));
     if let Ok(log_config) = env::var("TALLY_LOG") {
-        builder.parse(&log_config);
+        builder.parse_filters(&log_config);
     }
     builder.init();
 
