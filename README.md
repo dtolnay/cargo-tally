@@ -23,7 +23,7 @@ cargo install cargo-tally
 cargo tally --init
 ```
 
-- There is a one-time setup step that downloads a 6 MB json file of crates.io
+- There is a one-time setup step that downloads a 7 MB json file of crates.io
   metadata into a file called `tally.json.gz` within the current directory.
   Subsequent queries read from this cached data and do not query crates.io.
 
