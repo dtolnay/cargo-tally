@@ -23,6 +23,7 @@ impl Default for SymbolsStayOnOneThread {
     }
 }
 
+unsafe impl Send for SymbolsStayOnOneThread {}
 unsafe impl Sync for SymbolsStayOnOneThread {}
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
