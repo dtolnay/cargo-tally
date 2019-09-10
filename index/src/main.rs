@@ -1,7 +1,7 @@
 mod dir;
 mod error;
 
-use cargo_tally::Crate;
+use cargo_tally::{Crate};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -21,6 +21,9 @@ use std::process;
 
 use crate::error::{Error, Result};
 
+mod transitive;
+use transitive::TranitiveCrateDeps;
+
 const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
 
 type DateTime = chrono::DateTime<Utc>;
@@ -39,6 +42,7 @@ fn main() {
     }
 }
 
+// TODO ask about try_main
 fn try_main() -> Result<()> {
     let opts = Opts::from_args();
     let repo = Repository::open(&opts.index)?;
@@ -46,7 +50,11 @@ fn try_main() -> Result<()> {
     let pb = setup_progress_bar(crates.len());
     let timestamps = compute_timestamps(repo, &pb)?;
     let crates = consolidate_crates(crates, timestamps);
-    write_json(crates)?;
+    let transitive = compute_transitive(&crates);
+
+    write_json(cargo_tally::JSONFILE, crates)?;
+    // or make a new function
+    write_json(cargo_tally::COMPFILE, transitive)?;
     pb.finish_and_clear();
     Ok(())
 }
@@ -161,7 +169,11 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     crates
 }
 
-fn write_json(crates: Vec<Crate>) -> Result<()> {
+fn compute_transitive(crates: &Vec<Crate>) -> TranitiveCrateDeps {
+    // ? use tally's Resolve and Universe to compute?
+}
+
+fn write_json<T: serde::Serialize>(file: &str, crates: Vec<T>) -> Result<()> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
 
     for krate in crates {
@@ -171,7 +183,7 @@ fn write_json(crates: Vec<Crate>) -> Result<()> {
     }
 
     let gz = encoder.finish()?;
-    fs::write(cargo_tally::JSONFILE, gz)?;
+    fs::write(file, gz)?;
     Ok(())
 }
 

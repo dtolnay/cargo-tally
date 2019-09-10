@@ -6,6 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Display};
 
 pub const JSONFILE: &str = "tally.json.gz";
+pub const COMPFILE: &str = "comp.json.gz";
 
 pub type DateTime = chrono::DateTime<Utc>;
 
