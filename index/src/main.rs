@@ -1,7 +1,8 @@
 mod dir;
 mod error;
+mod transitive;
 
-use cargo_tally::{Crate};
+use cargo_tally::{Crate, TranitiveCrateDeps};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -20,9 +21,6 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use crate::error::{Error, Result};
-
-mod transitive;
-use transitive::TranitiveCrateDeps;
 
 const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
 
@@ -169,8 +167,12 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     crates
 }
 
-fn compute_transitive(crates: &Vec<Crate>) -> TranitiveCrateDeps {
-    // ? use tally's Resolve and Universe to compute?
+fn compute_transitive(crates: &[Crate]) -> Vec<TranitiveCrateDeps> {
+    let mut ret = Vec::new();
+    for krate in crates {
+        ret.push(TranitiveCrateDeps::calc_dependencies(crates, krate));
+    }
+    ret
 }
 
 fn write_json<T: serde::Serialize>(file: &str, crates: Vec<T>) -> Result<()> {

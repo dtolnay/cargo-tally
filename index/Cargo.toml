@@ -9,6 +9,7 @@ publish = false
 cargo-tally = { path = ".." }
 chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1.0"
+fnv = "1.0"
 git2 = "0.8"
 indicatif = "0.11"
 lazy_static = "1.3"
