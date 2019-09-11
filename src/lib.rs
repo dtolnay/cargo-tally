@@ -143,14 +143,12 @@ impl TranitiveCrateDeps {
     fn collect_deps(crates: &[Crate], search_crate: &Crate) -> Vec<CrateMeta> {
         let mut res = Vec::new();
         for krate in crates {
-            if let Some(dep) = krate.dependencies
-                .iter()
-                .find(|dep| {
-                    // collect all crates that depend on `search_crate`, non optional and non dev dep
-                    dep.name == search_crate.name && !dep.optional && dep.kind != DependencyKind::Dev
-                }) {
-                    res.push(CrateMeta::new(dep));
-                }
+            if let Some(dep) = krate.dependencies.iter().find(|dep| {
+                // collect all crates that depend on `search_crate`, non optional and non dev dep
+                dep.name == search_crate.name && !dep.optional && dep.kind != DependencyKind::Dev
+            }) {
+                res.push(CrateMeta::new(dep));
+            }
         }
         res
     }

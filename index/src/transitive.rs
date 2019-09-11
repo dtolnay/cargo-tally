@@ -1,4 +1,3 @@
-
 // use cargo_tally::{Crate, Feature, Dependency, DependencyKind};
 // use fnv::FnvHashMap as Map;
 // use semver::{Version, VersionReq};
