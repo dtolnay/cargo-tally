@@ -1,5 +1,5 @@
 use atty::{self, Stream::Stderr};
-use cargo_tally::{Crate, DateTime, Dependency, DependencyKind, Feature};
+use cargo_tally::{Crate, DateTime, Dependency, DependencyKind, Feature, TranitiveCrateDeps};
 use flate2::read::GzDecoder;
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
