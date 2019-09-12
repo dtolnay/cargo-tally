@@ -108,19 +108,21 @@ impl<'de> Deserialize<'de> for Feature {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CrateMeta {
+pub struct DepCrateMeta {
     name: String,
+    parent: String,
     version: VersionReq,
     // TODO do i need this info??
     features: Vec<String>,
     kind: DependencyKind,
 }
 
-impl CrateMeta {
-    fn new(dep: &Dependency) -> Self {
+impl DepCrateMeta {
+    fn new(dep: &Dependency, parent: &str) -> Self {
         // TODO try not to clone everything TransitiveCrateDeps too !!!
         Self {
             name: dep.name.to_string(),
+            parent: parent.to_string(),
             version: dep.req.clone(),
             features: dep.features.clone(),
             kind: dep.kind.clone(),
@@ -134,26 +136,69 @@ pub struct TranitiveCrateDeps {
     pub version: Version,
     pub features: Map<String, Vec<Feature>>,
     /// Crates that depend on this crate
-    pub depended_on: Vec<CrateMeta>,
+    pub depended_on: Vec<DepCrateMeta>,
     // or we could just use the count
     // count: usize,
 }
 
 impl TranitiveCrateDeps {
-    fn collect_deps(crates: &[Crate], search_crate: &Crate) -> Vec<CrateMeta> {
-        let mut res = Vec::new();
+    fn collect_deps(crates: &[Crate], search: &Crate, ret: &mut Vec<DepCrateMeta>) {
+        // TODO recursive ????? do i need to go deeper to actually hit all 
+        // transitive deps
+
+
+        // fn recurse(all: &[Crate], curr_crate: &Crate, result: &mut Vec<CrateMeta>) {
+        //     // finds crates that directly depend
+        //     for dep in curr_crate.dependencies.iter() {
+        //         // collect all crates that depend on `search_crate`, non optional and non dev dep
+        //         if dep.name == curr_crate.name && !dep.optional && dep.kind != DependencyKind::Dev {
+        //             result.push(CrateMeta::new(dep));
+        //         }
+        //         // search dependencies of every crate for matches to `search`
+        //         if let Some(t_crate) = all.iter().find(|t_crate| t_crate.name == dep.name) {
+        //             let found = t_crate.dependencies.iter().find(|&t_dep| {
+        //                 t_dep.name == curr_crate.name && !t_dep.optional && t_dep.kind != DependencyKind::Dev
+        //             });
+        //             if let Some(t_dep) = found {
+        //                 result.push(CrateMeta::new(t_dep));
+        //             }
+        //             recurse(all, t_crate, result)
+        //         }
+        //     }
+        // }
+
+        
+        // finds crates that directly depend
         for krate in crates {
-            if let Some(dep) = krate.dependencies.iter().find(|dep| {
+            for dep in krate.dependencies.iter() {
                 // collect all crates that depend on `search_crate`, non optional and non dev dep
-                dep.name == search_crate.name && !dep.optional && dep.kind != DependencyKind::Dev
-            }) {
-                res.push(CrateMeta::new(dep));
+                if dep.name == search.name && !dep.optional && dep.kind != DependencyKind::Dev {
+                    let meta = DepCrateMeta::new(dep, &krate.name);
+                    //println!("{:#?}", meta);
+                    ret.push(meta);
+                }
+                // search dependencies of every crate for matches to `search`
+                if let Some(t_crate) = crates.iter().find(|t_crate| t_crate.name == dep.name) {
+                    let found = t_crate.dependencies.iter().find(|&t_dep| {
+                        t_dep.name == search.name && !t_dep.optional && t_dep.kind != DependencyKind::Dev
+                    });
+                    if let Some(t_dep) = found {
+                        let meta = DepCrateMeta::new(t_dep, &t_crate.name);
+                        //println!("{:#?}", meta);
+                        ret.push(meta);
+                    }
+                }
             }
         }
-        res
+
+        //let mut ret = Vec::new();
+        //ret
     }
+
     pub fn calc_dependencies(crates: &[Crate], krate: &Crate) -> Self {
-        let depended_on = Self::collect_deps(crates, krate);
+        let mut depended_on = Vec::new();
+        Self::collect_deps(crates, krate, &mut depended_on);
+        // println!("{:?}", depended_on);
         Self {
             name: krate.name.to_owned(),
             version: krate.version.clone(),
