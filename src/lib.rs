@@ -145,28 +145,7 @@ impl TranitiveCrateDeps {
     fn collect_deps(crates: &[Crate], search: &Crate, ret: &mut Vec<DepCrateMeta>) {
         // TODO recursive ????? do i need to go deeper to actually hit all 
         // transitive deps
-
-
-        // fn recurse(all: &[Crate], curr_crate: &Crate, result: &mut Vec<CrateMeta>) {
-        //     // finds crates that directly depend
-        //     for dep in curr_crate.dependencies.iter() {
-        //         // collect all crates that depend on `search_crate`, non optional and non dev dep
-        //         if dep.name == curr_crate.name && !dep.optional && dep.kind != DependencyKind::Dev {
-        //             result.push(CrateMeta::new(dep));
-        //         }
-        //         // search dependencies of every crate for matches to `search`
-        //         if let Some(t_crate) = all.iter().find(|t_crate| t_crate.name == dep.name) {
-        //             let found = t_crate.dependencies.iter().find(|&t_dep| {
-        //                 t_dep.name == curr_crate.name && !t_dep.optional && t_dep.kind != DependencyKind::Dev
-        //             });
-        //             if let Some(t_dep) = found {
-        //                 result.push(CrateMeta::new(t_dep));
-        //             }
-        //             recurse(all, t_crate, result)
-        //         }
-        //     }
-        // }
-
+        // TODO use HashMap trick to speed up indexing??
         
         // finds crates that directly depend
         for krate in crates {
