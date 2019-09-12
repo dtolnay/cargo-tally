@@ -33,27 +33,40 @@ struct Opts {
     index: PathBuf,
 }
 
-fn main() {
-    if let Err(err) = try_main() {
-        let _ = writeln!(io::stderr(), "Error: {}", err);
-        process::exit(1);
+fn test() -> Result<Vec<Crate>> {
+    let json_path = Path::new("../tally.json");
+    if !json_path.exists() {
+        panic!("no file")
     }
+
+    let json = std::fs::read(json_path)?;
+    let de = serde_json::Deserializer::from_slice(&json);
+    let mut ret = Vec::new();
+    for line in de.into_iter::<Crate>() {
+        let krate = line?;
+        ret.push(krate);
+    }
+    Ok(ret)
 }
 
 // TODO ask about try_main
-fn try_main() -> Result<()> {
+fn main() -> Result<()> {
     let opts = Opts::from_args();
-    let repo = Repository::open(&opts.index)?;
-    let crates = parse_index(&opts.index)?;
+    //let repo = Repository::open(&opts.index).expect("open rep");
+    // let crates = parse_index(&opts.index).expect("parse idx");
+    // let pb = setup_progress_bar(crates.len());
+    // let timestamps = compute_timestamps(repo, &pb)?;
+    // let crates = consolidate_crates(crates, timestamps);
+    let crates = test()?;
     let pb = setup_progress_bar(crates.len());
-    let timestamps = compute_timestamps(repo, &pb)?;
-    let crates = consolidate_crates(crates, timestamps);
-    let transitive = compute_transitive(&crates);
+    // let transitive = compute_transitive(&crates, &pb);
+    let transitive = collect_all(&crates, &pb);
+    // println!("{:#?}", transitive);
 
     write_json(cargo_tally::JSONFILE, crates)?;
     // or make a new function
     write_json(cargo_tally::COMPFILE, transitive)?;
-    pb.finish_and_clear();
+    //pb.finish_and_clear();
     Ok(())
 }
 
