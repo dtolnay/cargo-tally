@@ -2,7 +2,7 @@ mod dir;
 mod error;
 mod transitive;
 
-use cargo_tally::{Crate, TranitiveCrateDeps, universe};
+use cargo_tally::{Crate, TranitiveCrateDeps, universe, intern::crate_name};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -62,12 +62,24 @@ fn main() -> Result<()> {
     // let transitive = compute_transitive(&crates, &pb);
     let mut transitive = universe(&crates, &pb);
     let tdep = transitive.depends.clone();
-    for krate in tdep.keys() {
-        transitive.build_graph(krate, &tdep, &pb);
+
+    if let Some(krate) = tdep.iter().find(|(k, _)| crate_name("tar") == k.name) {
+        println!("STARTING GRAPH");
+        transitive.build_graph(krate.0, &tdep, &pb);
     }
+    for (k, v) in transitive.depends.iter() {
+        println!("{:?}: {}", k, v.len());
+    }
+    for (k, v) in transitive.reverse_depends.iter() {
+        println!("{:?}: {}", k, v.len());
+    }
+    // println!("total {} transitive total {}",
+    //     transitive.depends.iter().fold(0, |sum, (_, deps)| sum + deps.len()),
+    //     transitive.reverse_depends.iter().find(|(k, _)| crate_name("tar") == k.name).unwrap().1.len(),
+    // );
     // println!("{:#?}", transitive);
 
-    write_json(cargo_tally::JSONFILE, crates)?;
+    //write_json(cargo_tally::JSONFILE, crates)?;
     // or make a new function
     //write_json(cargo_tally::COMPFILE, transitive)?;
     //pb.finish_and_clear();

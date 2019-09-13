@@ -113,8 +113,8 @@ use indicatif::ProgressBar;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct CrateKey {
-    pub(crate) name: CrateName,
-    pub(crate) index: u32,
+    pub name: CrateName,
+    pub index: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -130,7 +130,7 @@ pub(crate) struct Metadata {
 pub struct Universe {
     pub(crate) crates: Map<CrateName, (CrateKey, Vec<Metadata>)>,
     pub depends: Map<CrateKey, Vec<CrateKey>>,
-    reverse_depends: Map<CrateKey, Set<CrateKey>>,
+    pub reverse_depends: Map<CrateKey, Set<CrateKey>>,
 }
 
 impl Universe {
@@ -152,6 +152,7 @@ impl Universe {
 
     fn resolve_flat(&mut self, crates: &[Crate]) {
         for (i, krate) in crates.iter().enumerate() {
+
             let name = crate_name(&krate.name);
             let key = CrateKey { name, index: i as u32 };
 
@@ -161,26 +162,38 @@ impl Universe {
             self.depends.insert(key, Vec::new());
             
             for dep in krate.dependencies.iter() {
-                let dep_name = crate_name(&dep.name);
+                // there are a few crates that are not on krates.io so we skip for now
+                // "gobject-2_0" glib-2_0 and a few
+                if crates.iter().find(|k| k.name == dep.name).is_none() {
+                    continue
+                }
+                if !dep.optional && dep.kind != DependencyKind::Dev {
+                    let dep_name = crate_name(&dep.name);
+                    // we already have a CrateKey use that to build meta
+                    let crate_meta = self.crates.entry(dep_name).or_insert_with(|| {
+                        let msg = format!("could no find {:?}, {:?}", dep, dep_name);
+                        let (dep_idx, _crate) = crates
+                        .iter()
+                        .enumerate()
+                        .inspect(|(_, k)| if k.name == "tar" { println!("{}", k.name) })
+                        .find(|(_i, k)| k.name == dep.name).expect(&msg);
+                        let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
+                        (dep_key, Vec::new())
+                    });
 
-                // we already have a CrateKey use that to build meta
-                let crate_meta = self.crates.entry(dep_name).or_insert_with(|| {
-                    let (dep_idx, _crate) = crates.iter().enumerate().find(|(_i, k)| k.name == dep.name).unwrap();
-                    let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
-                    (dep_key, Vec::new())
-                });
+                    let dep_krate = crates.get(crate_meta.0.index as usize).unwrap();
+                    let dep_idx = crate_meta.0;
 
-                let dep_krate = crates.get(crate_meta.0.index as usize).unwrap();
-                let dep_idx = crate_meta.0;
-
-                let meta = Metadata {
-                    key: dep_idx,
-                    num: dep_krate.version.clone(),
-                    //created_at: event.timestamp,
-                    features: dep_krate.features.clone(),
-                    dependencies: dep_krate.dependencies.clone(),
-                };
-                self.add_to_crates_deps(key, dep_idx, dep_name, meta);
+                    let meta = Metadata {
+                        key: dep_idx,
+                        num: dep_krate.version.clone(),
+                        //created_at: event.timestamp,
+                        features: dep_krate.features.clone(),
+                        dependencies: dep_krate.dependencies.clone(),
+                    };
+                    self.add_to_crates_deps(key, dep_idx, dep_name, meta);
+                }
+                
                 // if let Some((prev_dep_idx, _meta)) = self.crates.get(&dep_name) {
                 //     // TODO no unwrap just use []?
                 //     let dep_krate = crates.get(prev_dep_idx.index as usize).unwrap();
@@ -228,6 +241,7 @@ impl Universe {
 
                 // if it contains search_dep and to reverse_deps
                 if let Some(matcher) = t_dep.iter().find(|k| k.name == dep_key.name) {
+                     pb.inc(1);
                     self.reverse_depends.entry(*search_dep).or_insert_with(Set::default).insert(*matcher);
                 }
             }
@@ -237,7 +251,7 @@ impl Universe {
     }
 }
 
-pub fn universe(crates: &[Crate], pb: &ProgressBar) -> Universe {
+pub fn universe(crates: &[Crate], _pb: &ProgressBar) -> Universe {
     let mut universe = Universe::new();
     universe.resolve_flat(crates);
     universe
@@ -327,7 +341,7 @@ impl TranitiveCrateDeps {
 }
 
 // TODO figure how to split into files
-mod intern {
+pub mod intern {
     use fnv::FnvBuildHasher;
     use lazy_static::lazy_static;
     use string_interner::{StringInterner, Symbol};

@@ -1,4 +1,4 @@
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Debug};
 use std::io;
 use std::path::PathBuf;
 
@@ -12,6 +12,19 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Error::*;
+
+        match self {
+            Git2(e) => write!(f, "{}", e),
+            JsonLine(path, e) => write!(f, "{}: {}", path.display(), e),
+            Json(e) => write!(f, "{}", e),
+            Io(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Error::*;
 
