@@ -193,38 +193,6 @@ impl Universe {
                     };
                     self.add_to_crates_deps(key, dep_idx, dep_name, meta);
                 }
-                
-                // if let Some((prev_dep_idx, _meta)) = self.crates.get(&dep_name) {
-                //     // TODO no unwrap just use []?
-                //     let dep_krate = crates.get(prev_dep_idx.index as usize).unwrap();
-                //     let meta = Metadata {
-                //         key: *prev_dep_idx,
-                //         num: dep_krate.version.clone(),
-                //         //created_at: event.timestamp,
-                //         features: dep_krate.features.clone(),
-                //         dependencies: dep_krate.dependencies.clone(),
-                //     };
-                    
-                //     self.add_to_crates_deps(key, *prev_dep_idx, dep_name, meta);
-                //     // self.crates.entry(dep_name).or_insert((prev_dep_idx.clone(), Vec::new())).1.push(meta);                    
-                //     // self.depends.entry(key).or_insert_with(Vec::new).push(prev_dep_idx.clone());
-                // } else {
-                //     // iter to find crate in all crates and build meta
-                //     // TODO unwrap remove
-                //     let (dep_idx, dep_krate) = crates.iter().enumerate().find(|(i, k)| k.name == dep.name).unwrap();
-                //     let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
-
-                //     let meta = Metadata {
-                //         key: dep_key,
-                //         num: dep_krate.version.clone(),
-                //         //created_at: event.timestamp,
-                //         features: dep_krate.features.clone(),
-                //         dependencies: dep_krate.dependencies.clone(),
-                //     };
-
-                //     self.crates.get_mut(&dep_name).unwrap().1.push(meta);
-                //     self.depends.get_mut(&key).unwrap().push(dep_key);
-                // }
             }
         }
     }
