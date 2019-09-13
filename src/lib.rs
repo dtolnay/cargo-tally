@@ -108,28 +108,139 @@ impl<'de> Deserialize<'de> for Feature {
 }
 
 
-use self::intern::CrateName;
+use self::intern::{crate_name, CrateName};
+use indicatif::ProgressBar;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(crate) struct CrateKey {
+pub struct CrateKey {
     pub(crate) name: CrateName,
     pub(crate) index: u32,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct Metadata {
+    key: CrateKey,
     pub(crate) num: Version,
-    created_at: DateTime,
+    // created_at: DateTime,
     features: Map<String, Vec<Feature>>,
     dependencies: Vec<Dependency>,
 }
 
 #[derive(Debug)]
-pub(crate) struct Universe {
-    pub(crate) crates: Map<CrateName, Vec<Metadata>>,
-    depends: Map<CrateKey, Vec<CrateKey>>,
+pub struct Universe {
+    pub(crate) crates: Map<CrateName, (CrateKey, Vec<Metadata>)>,
+    pub depends: Map<CrateKey, Vec<CrateKey>>,
     reverse_depends: Map<CrateKey, Set<CrateKey>>,
-    transitive: bool,
+}
+
+impl Universe {
+    fn new() -> Self {
+        Universe {
+            crates: Map::default(),
+            depends: Map::default(),
+            reverse_depends: Map::default(),
+        }
+    }
+
+    fn add_to_crates_deps(&mut self, key: CrateKey, dep_idx: CrateKey, name: CrateName, meta: Metadata) {
+        // we know there is a dep_name in crates so we add a meta built from
+        // crate in &[Crates] from index prev_dep_idx
+        self.crates.entry(name).or_insert((key, Vec::new())).1.push(meta);
+        // we found current deps index so use that CrateKey
+        self.depends.entry(key).or_insert_with(Vec::new).push(dep_idx);
+    }
+
+    fn resolve_flat(&mut self, crates: &[Crate]) {
+        for (i, krate) in crates.iter().enumerate() {
+            let name = crate_name(&krate.name);
+            let key = CrateKey { name, index: i as u32 };
+
+            // crates and deps
+            self.crates.insert(name, (key, Vec::new()));
+            // crate keys and dep keys
+            self.depends.insert(key, Vec::new());
+            
+            for dep in krate.dependencies.iter() {
+                let dep_name = crate_name(&dep.name);
+
+                // we already have a CrateKey use that to build meta
+                let crate_meta = self.crates.entry(dep_name).or_insert_with(|| {
+                    let (dep_idx, _crate) = crates.iter().enumerate().find(|(_i, k)| k.name == dep.name).unwrap();
+                    let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
+                    (dep_key, Vec::new())
+                });
+
+                let dep_krate = crates.get(crate_meta.0.index as usize).unwrap();
+                let dep_idx = crate_meta.0;
+
+                let meta = Metadata {
+                    key: dep_idx,
+                    num: dep_krate.version.clone(),
+                    //created_at: event.timestamp,
+                    features: dep_krate.features.clone(),
+                    dependencies: dep_krate.dependencies.clone(),
+                };
+                self.add_to_crates_deps(key, dep_idx, dep_name, meta);
+                // if let Some((prev_dep_idx, _meta)) = self.crates.get(&dep_name) {
+                //     // TODO no unwrap just use []?
+                //     let dep_krate = crates.get(prev_dep_idx.index as usize).unwrap();
+                //     let meta = Metadata {
+                //         key: *prev_dep_idx,
+                //         num: dep_krate.version.clone(),
+                //         //created_at: event.timestamp,
+                //         features: dep_krate.features.clone(),
+                //         dependencies: dep_krate.dependencies.clone(),
+                //     };
+                    
+                //     self.add_to_crates_deps(key, *prev_dep_idx, dep_name, meta);
+                //     // self.crates.entry(dep_name).or_insert((prev_dep_idx.clone(), Vec::new())).1.push(meta);                    
+                //     // self.depends.entry(key).or_insert_with(Vec::new).push(prev_dep_idx.clone());
+                // } else {
+                //     // iter to find crate in all crates and build meta
+                //     // TODO unwrap remove
+                //     let (dep_idx, dep_krate) = crates.iter().enumerate().find(|(i, k)| k.name == dep.name).unwrap();
+                //     let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
+
+                //     let meta = Metadata {
+                //         key: dep_key,
+                //         num: dep_krate.version.clone(),
+                //         //created_at: event.timestamp,
+                //         features: dep_krate.features.clone(),
+                //         dependencies: dep_krate.dependencies.clone(),
+                //     };
+
+                //     self.crates.get_mut(&dep_name).unwrap().1.push(meta);
+                //     self.depends.get_mut(&key).unwrap().push(dep_key);
+                // }
+            }
+        }
+    }
+
+    pub fn build_graph(&mut self, search_dep: &CrateKey, depends: &Map<CrateKey, Vec<CrateKey>>, pb: &ProgressBar) {
+        // iter over dependencies
+        for dep_key in depends.get(search_dep).unwrap().iter() {
+            // get dependency this crates deps are second order transitive
+            if let Some(t_dep) = self.depends.get(dep_key) {
+                // TODO if we include direct deps
+                // if dep_key == search_dep {
+                //     self.reverse_depends.entry(*search_dep).or_insert_with(Set::default).insert(*dep_key);
+                // }
+
+                // if it contains search_dep and to reverse_deps
+                if let Some(matcher) = t_dep.iter().find(|k| k.name == dep_key.name) {
+                    self.reverse_depends.entry(*search_dep).or_insert_with(Set::default).insert(*matcher);
+                }
+            }
+            // depth first recurse into graph deps of deps ect...
+            self.build_graph(dep_key, depends, pb)
+        }
+    }
+}
+
+pub fn universe(crates: &[Crate], pb: &ProgressBar) -> Universe {
+    let mut universe = Universe::new();
+    universe.resolve_flat(crates);
+    universe
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -167,7 +278,7 @@ pub struct TranitiveCrateDeps {
 }
 
 impl TranitiveCrateDeps {
-    fn collect_deps(crates: &[Crate], search: &Crate, ret: &mut Vec<DepCrateMeta>) {
+    fn collect_deps(crates: &[Crate], search: &Crate, ret: &mut Vec<DepCrateMeta>, pb: &ProgressBar) {
         // TODO recursive ????? do i need to go deeper to actually hit all 
         // transitive deps
         // TODO use HashMap trick to speed up indexing??
@@ -199,9 +310,9 @@ impl TranitiveCrateDeps {
         //ret
     }
 
-    pub fn calc_dependencies(crates: &[Crate], krate: &Crate) -> Self {
+    pub fn calc_dependencies(crates: &[Crate], krate: &Crate, pb: &ProgressBar) -> Self {
         let mut depended_on = Vec::new();
-        Self::collect_deps(crates, krate, &mut depended_on);
+        Self::collect_deps(crates, krate, &mut depended_on, pb);
         // println!("{:?}", depended_on);
         Self {
             name: krate.name.to_owned(),

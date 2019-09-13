@@ -1,6 +1,6 @@
 use semver::ReqParseError;
 
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Debug};
 use std::io;
 
 pub enum Error {
@@ -16,6 +16,26 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Error::*;
+
+        match self {
+            MissingJson => write!(
+                f,
+                "missing ./{}; run `cargo tally --init`",
+                cargo_tally::JSONFILE
+            ),
+            ParseSeries(s, err) => write!(f, "failed to parse series {}: {}", s, err),
+            Io(err) => write!(f, "{}", err),
+            Json(err) => write!(f, "{}", err),
+            Reqwest(err) => write!(f, "{}", err),
+            Regex(err) => write!(f, "{}", err),
+            NothingFound => write!(f, "nothing found for this crate"),
+        }
+    }
+}
+
+impl Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Error::*;
 

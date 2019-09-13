@@ -2,7 +2,7 @@ mod dir;
 mod error;
 mod transitive;
 
-use cargo_tally::{Crate, TranitiveCrateDeps};
+use cargo_tally::{Crate, TranitiveCrateDeps, universe};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -60,12 +60,16 @@ fn main() -> Result<()> {
     let crates = test()?;
     let pb = setup_progress_bar(crates.len());
     // let transitive = compute_transitive(&crates, &pb);
-    let transitive = collect_all(&crates, &pb);
+    let mut transitive = universe(&crates, &pb);
+    let tdep = transitive.depends.clone();
+    for krate in tdep.keys() {
+        transitive.build_graph(krate, &tdep, &pb);
+    }
     // println!("{:#?}", transitive);
 
     write_json(cargo_tally::JSONFILE, crates)?;
     // or make a new function
-    write_json(cargo_tally::COMPFILE, transitive)?;
+    //write_json(cargo_tally::COMPFILE, transitive)?;
     //pb.finish_and_clear();
     Ok(())
 }
@@ -180,10 +184,22 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     crates
 }
 
-fn compute_transitive(crates: &[Crate]) -> Vec<TranitiveCrateDeps> {
+fn compute_transitive(crates: &[Crate], pb: &ProgressBar) -> Vec<TranitiveCrateDeps> {
     let mut ret = Vec::new();
-    for krate in crates {
-        ret.push(TranitiveCrateDeps::calc_dependencies(crates, krate));
+    for krate in crates.iter().take(1) {
+        let t_dep = TranitiveCrateDeps::calc_dependencies(crates, krate, pb);
+        // println!("{:?}", t_dep);
+        ret.push(t_dep);
+        
+        //pb.inc(1);
+    }
+
+    // TODO remove
+    for dep in ret.iter() {
+        println!("name: {} count: {}", dep.name, dep.depended_on.len());
+    }
+    if let Some(tokio) = ret.iter().find(|d| d.name == "tokio") {
+        println!("name: {} count: {}", tokio.name, tokio.depended_on.len());
     }
     ret
 }
