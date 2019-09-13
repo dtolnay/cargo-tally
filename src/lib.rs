@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Display};
 
 pub const JSONFILE: &str = "tally.json.gz";
-pub const COMPFILE: &str = "comp.json.gz";
+pub const COMPFILE: &str = "computed.json.gz";
 
 pub type DateTime = chrono::DateTime<Utc>;
 
@@ -109,28 +109,88 @@ impl<'de> Deserialize<'de> for Feature {
 
 
 use self::intern::{crate_name, CrateName};
-use indicatif::ProgressBar;
 
-#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+use indicatif::ProgressBar;
+use log::{debug, info};
+use semver_parser::range::{self, Op::Compatible, Predicate};
+
+use std::u64;
+
+#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct CrateKey {
     pub name: CrateName,
     pub index: u32,
 }
+impl CrateKey {
+    fn new(name: CrateName, index: u32) -> Self {
+        CrateKey { name, index }
+    }
+}
+// impl Serialize for CrateKey {
+//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         serializer.collect_str(&format!("{:?}", self.name))
+//     }
+// }
+// impl<'de> Deserialize<'de> for CrateKey {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         let mut s = String::deserialize(deserializer)?;
+//         Ok(match s.find('/') {
+//             Some(slash) => {
+//                 let feature = s[slash + 1..].to_owned();
+//                 s.truncate(slash);
+//                 Feature::Dependency(s, feature)
+//             }
+//             None => Feature::Current(s),
+//         })
+//     }
+// }
 
-#[derive(Clone, Debug)]
-pub(crate) struct Metadata {
-    key: CrateKey,
+#[derive(Debug)]
+struct Matcher {
+    name: CrateName,
+    req: VersionReq,
+    nodes: Vec<u32>,
+}
+
+#[derive(Debug)]
+struct Event {
+    name: CrateName,
+    num: Version,
+    timestamp: DateTime,
+    features: Map<String, Vec<Feature>>,
+    dependencies: Vec<Dependency>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Metadata {
     pub(crate) num: Version,
-    // created_at: DateTime,
+    created_at: DateTime,
     features: Map<String, Vec<Feature>>,
     dependencies: Vec<Dependency>,
 }
 
 #[derive(Debug)]
 pub struct Universe {
-    pub(crate) crates: Map<CrateName, (CrateKey, Vec<Metadata>)>,
+    pub(crate) crates: Map<CrateName, Vec<Metadata>>,
     pub depends: Map<CrateKey, Vec<CrateKey>>,
     pub reverse_depends: Map<CrateKey, Set<CrateKey>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Row {
+    pub timestamp: DateTime,
+    pub name: CrateName,
+    pub num: Version,
+    pub deps: Vec<Metadata>,
+    // TODO what to do about Vec<usize> remove for now just usize
+    pub counts: usize,
+    pub total: usize,
 }
 
 impl Universe {
@@ -142,202 +202,334 @@ impl Universe {
         }
     }
 
-    fn add_to_crates_deps(&mut self, key: CrateKey, dep_idx: CrateKey, name: CrateName, meta: Metadata) {
-        // we know there is a dep_name in crates so we add a meta built from
-        // crate in &[Crates] from index prev_dep_idx
-        self.crates.entry(name).or_insert((key, Vec::new())).1.push(meta);
-        // we found current deps index so use that CrateKey
-        self.depends.entry(key).or_insert_with(Vec::new).push(dep_idx);
-    }
+    fn process_event(&mut self, event: Event) {
+            // TODO update redos and pin version nums
 
-    fn resolve_flat(&mut self, crates: &[Crate]) {
-        for (i, krate) in crates.iter().enumerate() {
+            info!("processing event {} {}", event.name, event.num);
 
-            let name = crate_name(&krate.name);
-            let key = CrateKey { name, index: i as u32 };
-
-            // crates and deps
-            self.crates.insert(name, (key, Vec::new()));
-            // crate keys and dep keys
-            self.depends.insert(key, Vec::new());
-            
-            for dep in krate.dependencies.iter() {
-                // there are a few crates that are not on krates.io so we skip for now
-                // "gobject-2_0" glib-2_0 and a few
-                if crates.iter().find(|k| k.name == dep.name).is_none() {
-                    continue
+            let mut redo = Set::default();
+            if let Some(prev) = self.crates.get(&event.name) {
+                let key = CrateKey::new(event.name, prev.len() as u32 - 1);
+                for dep in &self.depends[&key] {
+                    self.reverse_depends.get_mut(dep).unwrap().remove(&key);
                 }
-                if !dep.optional && dep.kind != DependencyKind::Dev {
-                    let dep_name = crate_name(&dep.name);
-                    // we already have a CrateKey use that to build meta
-                    let crate_meta = self.crates.entry(dep_name).or_insert_with(|| {
-                        let msg = format!("could no find {:?}, {:?}", dep, dep_name);
-                        let (dep_idx, _crate) = crates
-                        .iter()
-                        .enumerate()
-                        .inspect(|(_, k)| if k.name == "tar" { println!("{}", k.name) })
-                        .find(|(_i, k)| k.name == dep.name).expect(&msg);
-                        let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
-                        (dep_key, Vec::new())
-                    });
-
-                    let dep_krate = crates.get(crate_meta.0.index as usize).unwrap();
-                    let dep_idx = crate_meta.0;
-
-                    let meta = Metadata {
-                        key: dep_idx,
-                        num: dep_krate.version.clone(),
-                        //created_at: event.timestamp,
-                        features: dep_krate.features.clone(),
-                        dependencies: dep_krate.dependencies.clone(),
-                    };
-                    self.add_to_crates_deps(key, dep_idx, dep_name, meta);
-                }
-                
-                // if let Some((prev_dep_idx, _meta)) = self.crates.get(&dep_name) {
-                //     // TODO no unwrap just use []?
-                //     let dep_krate = crates.get(prev_dep_idx.index as usize).unwrap();
-                //     let meta = Metadata {
-                //         key: *prev_dep_idx,
-                //         num: dep_krate.version.clone(),
-                //         //created_at: event.timestamp,
-                //         features: dep_krate.features.clone(),
-                //         dependencies: dep_krate.dependencies.clone(),
-                //     };
-                    
-                //     self.add_to_crates_deps(key, *prev_dep_idx, dep_name, meta);
-                //     // self.crates.entry(dep_name).or_insert((prev_dep_idx.clone(), Vec::new())).1.push(meta);                    
-                //     // self.depends.entry(key).or_insert_with(Vec::new).push(prev_dep_idx.clone());
-                // } else {
-                //     // iter to find crate in all crates and build meta
-                //     // TODO unwrap remove
-                //     let (dep_idx, dep_krate) = crates.iter().enumerate().find(|(i, k)| k.name == dep.name).unwrap();
-                //     let dep_key = CrateKey { name: dep_name, index: dep_idx as u32 };
-
-                //     let meta = Metadata {
-                //         key: dep_key,
-                //         num: dep_krate.version.clone(),
-                //         //created_at: event.timestamp,
-                //         features: dep_krate.features.clone(),
-                //         dependencies: dep_krate.dependencies.clone(),
-                //     };
-
-                //     self.crates.get_mut(&dep_name).unwrap().1.push(meta);
-                //     self.depends.get_mut(&key).unwrap().push(dep_key);
-                // }
-            }
-        }
-    }
-
-    pub fn build_graph(&mut self, search_dep: &CrateKey, depends: &Map<CrateKey, Vec<CrateKey>>, pb: &ProgressBar) {
-        // iter over dependencies
-        for dep_key in depends.get(search_dep).unwrap().iter() {
-            // get dependency this crates deps are second order transitive
-            if let Some(t_dep) = self.depends.get(dep_key) {
-                // TODO if we include direct deps
-                // if dep_key == search_dep {
-                //     self.reverse_depends.entry(*search_dep).or_insert_with(Set::default).insert(*dep_key);
-                // }
-
-                // if it contains search_dep and to reverse_deps
-                if let Some(matcher) = t_dep.iter().find(|k| k.name == dep_key.name) {
-                     pb.inc(1);
-                    self.reverse_depends.entry(*search_dep).or_insert_with(Set::default).insert(*matcher);
-                }
-            }
-            // depth first recurse into graph deps of deps ect...
-            self.build_graph(dep_key, depends, pb)
-        }
-    }
-}
-
-pub fn universe(crates: &[Crate], _pb: &ProgressBar) -> Universe {
-    let mut universe = Universe::new();
-    universe.resolve_flat(crates);
-    universe
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DepCrateMeta {
-    name: String,
-    parent: String,
-    version: VersionReq,
-    // TODO do i need this info??
-    features: Vec<String>,
-    kind: DependencyKind,
-}
-
-impl DepCrateMeta {
-    fn new(dep: &Dependency, parent: &str) -> Self {
-        // TODO try not to clone everything TransitiveCrateDeps too !!!
-        Self {
-            name: dep.name.to_string(),
-            parent: parent.to_string(),
-            version: dep.req.clone(),
-            features: dep.features.clone(),
-            kind: dep.kind.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TranitiveCrateDeps {
-    pub name: String,
-    pub version: Version,
-    pub features: Map<String, Vec<Feature>>,
-    /// Crates that depend on this crate
-    pub depended_on: Vec<DepCrateMeta>,
-    // or we could just use the count
-    // count: usize,
-}
-
-impl TranitiveCrateDeps {
-    fn collect_deps(crates: &[Crate], search: &Crate, ret: &mut Vec<DepCrateMeta>, pb: &ProgressBar) {
-        // TODO recursive ????? do i need to go deeper to actually hit all 
-        // transitive deps
-        // TODO use HashMap trick to speed up indexing??
-        
-        // finds crates that directly depend
-        for krate in crates {
-            for dep in krate.dependencies.iter() {
-                // collect all crates that depend on `search_crate`, non optional and non dev dep
-                if dep.name == search.name && !dep.optional && dep.kind != DependencyKind::Dev {
-                    let meta = DepCrateMeta::new(dep, &krate.name);
-                    //println!("{:#?}", meta);
-                    ret.push(meta);
-                }
-                // search dependencies of every crate for matches to `search`
-                if let Some(t_crate) = crates.iter().find(|t_crate| t_crate.name == dep.name) {
-                    let found = t_crate.dependencies.iter().find(|&t_dep| {
-                        t_dep.name == search.name && !t_dep.optional && t_dep.kind != DependencyKind::Dev
-                    });
-                    if let Some(t_dep) = found {
-                        let meta = DepCrateMeta::new(t_dep, &t_crate.name);
-                        //println!("{:#?}", meta);
-                        ret.push(meta);
+                self.depends.remove(&key);
+                for (i, metadata) in prev.iter().enumerate() {
+                    if compatible_req(&metadata.num).matches(&event.num) {
+                        let key = CrateKey::new(event.name, i as u32);
+                        for node in self.reverse_depends[&key].clone() {
+                            for dep in &self.depends[&node] {
+                                self.reverse_depends.get_mut(dep).unwrap().remove(&node);
+                            }
+                            redo.insert(node);
+                        }
                     }
                 }
             }
+
+            // Fix up silly wildcard deps by pinning them to versions compatible
+            // with the latest release of the dep
+            let mut dependencies = event.dependencies;
+            let version_max = Version::new(u64::MAX, u64::MAX, u64::MAX);
+            for dep in &mut dependencies {
+                if dep.req.matches(&version_max) {
+                    let name = crate_name(&*dep.name);
+                    if let Some(releases) = self.crates.get(&name) {
+                        dep.req = compatible_req(&releases.last().unwrap().num);
+                    }
+                }
+            }                 
+            let metadata = Metadata {
+                num: event.num,
+                created_at: event.timestamp,
+                features: event.features,
+                dependencies,
+            };
+
+            // index is which dependency we mean in terms of Metadata
+            let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
+            let key = CrateKey::new(event.name, index as u32);
+
+            self.resolve_and_add_to_graph(key, &metadata);
+
+            self.reverse_depends.insert(key, Set::default());
+            self.crates.get_mut(&event.name).unwrap().push(metadata);
+
+            for outdated in redo {
+                let metadata = self.crates[&outdated.name][outdated.index as usize].clone();
+                debug!("re-resolving {} {}", outdated.name, metadata.num);
+                self.resolve_and_add_to_graph(outdated, &metadata);
+            }
+    }
+
+    fn resolve(&self, name: &str, req: &VersionReq) -> Option<u32> {
+        self.crates
+            .get(&crate_name(name))?
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|&(_, metadata)| req.matches(&metadata.num))
+            .map(|(i, _)| i as u32)
+    }
+
+    fn resolve_and_add_to_graph(&mut self, key: CrateKey, metadata: &Metadata) {
+        let mut resolve = Resolve { crates: Map::default(), };
+
+        for dep in metadata.dependencies.iter() {
+            if let Some(index) = self.resolve(&dep.name, &dep.req) {
+                let name = crate_name(&dep.name);
+                let key = CrateKey { name, index, };
+                // RECURSIVELY walk deps of deps ect.
+                resolve.add_crate(self, key, dep.default_features, &dep.features);
+            }
         }
 
-        //let mut ret = Vec::new();
-        //ret
+        for dep in resolve.crates.keys() {
+            self.reverse_depends
+                .entry(*dep)
+                .or_insert_with(Set::default)
+                .insert(key);
+        }
+        self.depends
+            .insert(key, resolve.crates.keys().cloned().collect());
     }
 
-    pub fn calc_dependencies(crates: &[Crate], krate: &Crate, pb: &ProgressBar) -> Self {
-        let mut depended_on = Vec::new();
-        Self::collect_deps(crates, krate, &mut depended_on, pb);
-        // println!("{:?}", depended_on);
-        Self {
-            name: krate.name.to_owned(),
-            version: krate.version.clone(),
-            features: krate.features.clone(),
-            depended_on,
+    fn compute_counts(
+        &self,
+        timestamp: DateTime,
+        name: CrateName,
+        num: Version,
+        deps: Vec<Metadata>,
+        matcher: &Matcher,
+    ) -> Row {
+        let mut set = Set::default();
+        Row {
+            timestamp,
+            name,
+            num,
+            deps,
+            counts: {
+                    set.clear();
+                    for index in matcher.nodes.iter() {
+                        let key = CrateKey::new(matcher.name, *index);
+                        set.extend(self.reverse_depends[&key].iter().map(|key| key.name));
+                    }
+                    set.len()
+                },
+            total: self.crates.len(),
         }
     }
-    pub fn calculate_trans_deps(&self) {
-        // calculate from Vec<Crate>
+}
+
+#[derive(Debug)]
+struct Resolve {
+    crates: Map<CrateKey, ResolvedCrate>,
+}
+
+#[derive(Debug)]
+struct ResolvedCrate {
+    features: Set<String>,
+    resolved: Vec<Option<u32>>,
+}
+
+impl ResolvedCrate {
+    fn no_resolve() -> Self {
+        ResolvedCrate {
+            features: Set::default(),
+            resolved: Vec::new(),
+        }
     }
+}
+impl Resolve {
+    #![allow(clippy::map_entry)]
+    fn add_crate(
+        &mut self,
+        universe: &Universe,
+        key: CrateKey,
+        default_features: bool,
+        features: &[String],
+    ) {
+        let metadata = &universe.crates[&key.name][key.index as usize];
+
+        debug!("adding crate {} {}", key.name, metadata.num);
+        if !self.crates.contains_key(&key) {
+            let resolved = metadata
+                .dependencies
+                .iter()
+                .map(|dep| universe.resolve(&dep.name, &dep.req))
+                .collect::<Vec<_>>();
+            self.crates.insert(
+                key,
+                ResolvedCrate {
+                    features: Set::default(),
+                    resolved: resolved.clone(),
+                },
+            );
+            for (dep, index) in metadata.dependencies.iter().zip(resolved) {
+                if !dep.optional && dep.kind != DependencyKind::Dev && index.is_some() {
+                    let key = CrateKey::new(crate_name(&*dep.name), index.unwrap());
+                    self.add_crate(universe, key, dep.default_features, &dep.features);
+                }
+            }
+        }
+
+        if default_features {
+            if let Some(default_features) = metadata.features.get("default") {
+                for feature in default_features {
+                    self.add_dep_or_crate_feature(universe, key, feature);
+                }
+            }
+        }
+        for feature in features {
+            self.add_crate_feature(universe, key, feature);
+        }
+    }
+
+    fn add_dep_or_crate_feature(&mut self, universe: &Universe, key: CrateKey, feature: &Feature) {
+        let metadata = &universe.crates[&key.name][key.index as usize];
+
+        debug!(
+            "adding dep or feature {} {}:{}",
+            key.name, metadata.num, feature
+        );
+
+        match *feature {
+            Feature::Current(ref feature) => {
+                self.add_crate_feature(universe, key, feature);
+            }
+            Feature::Dependency(ref name, ref feature) => {
+                for (i, dep) in metadata.dependencies.iter().enumerate() {
+                    if dep.name == *name {
+                        if !self.crates.contains_key(&key) {
+                            println!("uh-oh");
+                        }
+                        if let Some(resolved) = self.crates[&key].resolved[i] {
+                            let key = CrateKey::new(crate_name(&**name), resolved);
+                            self.add_crate(universe, key, dep.default_features, &dep.features);
+                            self.add_crate_feature(universe, key, feature);
+                        }
+                        return;
+                    }
+                }
+                // FIXME https://github.com/dtolnay/cargo-tally/issues/22
+                /*
+                panic!(
+                    "feature not found: {} {}:{}/{}",
+                    key.name, metadata.num, name, feature
+                );
+                */
+            }
+        }
+    }
+
+    fn add_crate_feature(&mut self, universe: &Universe, key: CrateKey, feature: &str) {
+        let metadata = &universe.crates[&key.name][key.index as usize];
+
+        if !self
+            .crates
+            .get_mut(&key)
+            .unwrap()
+            .features
+            .insert(feature.to_owned())
+        {
+            return;
+        }
+
+        debug!("adding feature {} {}:{}", key.name, metadata.num, feature);
+
+        if let Some(subfeatures) = metadata.features.get(feature) {
+            for subfeature in subfeatures {
+                self.add_dep_or_crate_feature(universe, key, subfeature);
+            }
+        } else {
+            for (i, dep) in metadata.dependencies.iter().enumerate() {
+                if dep.name == feature {
+                    if !self.crates.contains_key(&key) {
+                        println!("uh-oh");
+                    }
+                    if let Some(resolved) = self.crates[&key].resolved[i] {
+                        let key = CrateKey::new(crate_name(feature), resolved);
+                        self.add_crate(universe, key, dep.default_features, &dep.features);
+                    }
+                    return;
+                }
+            }
+            if key.name == "libc" && metadata.num == Version::new(0, 2, 4) && feature == "no-std" {
+                // Looks like a one-time glitch, jemalloc-sys 0.1.0 depends on
+                // this nonexistent feature of libc 0.2.4.
+                return;
+            }
+            // We get here if someone made a breaking change by removing a feature :(
+        }
+    }
+}
+
+fn create_matcher(krate: &str) -> Matcher {
+    // TODO clean up move Error and Result to right place when ready
+    // use self::error::Error;
+    let mut pieces = krate.splitn(2, ':');
+    Matcher {
+        name: crate_name(pieces.next().unwrap()),
+        req: match pieces.next().unwrap_or("*").parse() {
+            Ok(req) => req,
+            Err(err) => panic!("{:?}", err),
+        },
+        nodes: Vec::new(),
+    }
+}
+
+fn compatible_req(version: &Version) -> VersionReq {
+    use semver::Identifier as SemverId;
+    use semver_parser::version::Identifier as ParseId;
+    VersionReq::from(range::VersionReq {
+        predicates: vec![Predicate {
+            op: Compatible,
+            major: version.major,
+            minor: Some(version.minor),
+            patch: Some(version.patch),
+            pre: version
+                .pre
+                .iter()
+                .map(|pre| match *pre {
+                    SemverId::Numeric(n) => ParseId::Numeric(n),
+                    SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
+                })
+                .collect(),
+        }],
+    })
+}
+
+pub fn universe(crates: Vec<Crate>, pb: &ProgressBar) -> (Universe, Vec<Row>) {
+    let mut universe = Universe::new();
+    let mut table = Vec::new();
+    for krate in crates {
+    //if let Some(krate) = crates.into_iter().find(|k| k.name == "tar") {
+        pb.inc(1);
+
+        let name = crate_name(&krate.name);
+        let timestamp = krate.published.unwrap(); 
+        
+        let mut matcher = create_matcher(&krate.name);
+
+        let ev = Event {
+            name,
+            num: krate.version.clone(),
+            timestamp,
+            features: krate.features,
+            dependencies: krate.dependencies,
+        };
+
+        universe.process_event(ev);
+
+        if matcher.name == name && matcher.req.matches(&krate.version) {
+            matcher.nodes.push(universe.crates[&name].len() as u32 - 1);
+        }
+
+        let deps = universe.crates[&name].clone();
+        let row = universe.compute_counts(timestamp, name, krate.version, deps, &matcher);
+        table.push(row);
+    }
+    (universe, table)
 }
 
 // TODO figure how to split into files
@@ -370,7 +562,7 @@ pub mod intern {
     unsafe impl Send for SymbolsStayOnOneThread {}
     unsafe impl Sync for SymbolsStayOnOneThread {}
 
-    #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+    #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, super::Serialize, super::Deserialize)]
     pub struct CrateName {
         value: u32,
         not_send_sync: PhantomData<*const ()>,
@@ -389,7 +581,6 @@ pub mod intern {
                 not_send_sync: PhantomData,
             }
         }
-
         fn to_usize(self) -> usize {
             self.value as usize
         }
@@ -422,6 +613,69 @@ pub mod intern {
     impl<'a> PartialEq<&'a str> for CrateName {
         fn eq(&self, other: &&str) -> bool {
             &**self == *other
+        }
+    }
+}
+
+mod error {
+    use semver::ReqParseError;
+
+    use std::fmt::{self, Display, Debug};
+    use std::io;
+
+    pub enum Error {
+        MissingJson,
+        ParseSeries(String, ReqParseError),
+        Io(io::Error),
+        Json(serde_json::Error),
+        Reqwest(reqwest::Error),
+        Regex(regex::Error),
+        NothingFound,
+    }
+
+    pub type Result<T> = std::result::Result<T, Error>;
+
+    impl Display for Error {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            use self::Error::*;
+
+            match self {
+                MissingJson => write!(
+                    f,
+                    "missing ./{}; run `cargo tally --init`",
+                    super::JSONFILE
+                ),
+                ParseSeries(s, err) => write!(f, "failed to parse series {}: {}", s, err),
+                Io(err) => write!(f, "{}", err),
+                Json(err) => write!(f, "{}", err),
+                Reqwest(err) => write!(f, "{}", err),
+                Regex(err) => write!(f, "{}", err),
+                NothingFound => write!(f, "nothing found for this crate"),
+            }
+        }
+    }
+
+    impl From<io::Error> for Error {
+        fn from(err: io::Error) -> Self {
+            Error::Io(err)
+        }
+    }
+
+    impl From<serde_json::Error> for Error {
+        fn from(err: serde_json::Error) -> Self {
+            Error::Json(err)
+        }
+    }
+
+    impl From<reqwest::Error> for Error {
+        fn from(err: reqwest::Error) -> Self {
+            Error::Reqwest(err)
+        }
+    }
+
+    impl From<regex::Error> for Error {
+        fn from(err: regex::Error) -> Self {
+            Error::Regex(err)
         }
     }
 }

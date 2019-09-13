@@ -2,9 +2,9 @@ mod dir;
 mod error;
 mod transitive;
 
-use cargo_tally::{Crate, TranitiveCrateDeps, universe, intern::crate_name};
+use cargo_tally::{Crate, universe, intern::crate_name};
 use chrono::{NaiveDateTime, Utc};
-use flate2::write::GzEncoder;
+use flate2::write::{GzEncoder, GzDecoder};
 use flate2::Compression;
 use git2::{Commit, Repository};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
@@ -16,7 +16,7 @@ use structopt::StructOpt;
 use std::cmp::Ordering;
 use std::collections::BTreeMap as Map;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, Write, Read};
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -25,7 +25,7 @@ use crate::error::{Error, Result};
 const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
 
 type DateTime = chrono::DateTime<Utc>;
-
+// 139_079 crates in crates.io
 #[derive(StructOpt, Debug)]
 struct Opts {
     /// Path containing crates.io-index checkout
@@ -34,19 +34,45 @@ struct Opts {
 }
 
 fn test() -> Result<Vec<Crate>> {
+    let pb = setup_progress_bar(100_000);
+
     let json_path = Path::new("../tally.json");
     if !json_path.exists() {
-        panic!("no file")
+        panic!("no file {:?}", json_path)
     }
 
     let json = std::fs::read(json_path)?;
     let de = serde_json::Deserializer::from_slice(&json);
     let mut ret = Vec::new();
-    for line in de.into_iter::<Crate>() {
+    for line in pb.wrap_iter(de.into_iter::<Crate>()) {
         let krate = line?;
         ret.push(krate);
     }
+    pb.finish_and_clear();
     Ok(ret)
+}
+
+fn load_computed() -> Result<Vec<Row>> {
+    let pb = setup_progress_bar(100_000);
+    let json_path = Path::new("./computed.json");
+    if !json_path.exists() {
+        panic!("no file {:?}", json_path)
+    }
+
+    let mut krates = Vec::new();
+    // let file = fs::File::open(json_path)?;
+    // let mut decoder = GzDecoder::new(file);
+    // let mut decompressed = Vec::new();
+    // decoder.read_to_end(&mut decompressed)?;
+    let json = fs::read(json_path)?;
+    let de = serde_json::Deserializer::from_slice(&json);
+    for line in pb.wrap_iter(de.into_iter::<Row>()) {
+        let krate = line?;
+        krates.push(krate);
+    }
+    pb.finish_and_clear();
+    
+    Ok(krates)
 }
 
 // TODO ask about try_main
@@ -57,31 +83,33 @@ fn main() -> Result<()> {
     // let pb = setup_progress_bar(crates.len());
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
-    let crates = test()?;
-    let pb = setup_progress_bar(crates.len());
-    // let transitive = compute_transitive(&crates, &pb);
-    let mut transitive = universe(&crates, &pb);
-    let tdep = transitive.depends.clone();
 
-    if let Some(krate) = tdep.iter().find(|(k, _)| crate_name("tar") == k.name) {
-        println!("STARTING GRAPH");
-        transitive.build_graph(krate.0, &tdep, &pb);
-    }
-    for (k, v) in transitive.depends.iter() {
-        println!("{:?}: {}", k, v.len());
-    }
-    for (k, v) in transitive.reverse_depends.iter() {
-        println!("{:?}: {}", k, v.len());
-    }
-    // println!("total {} transitive total {}",
-    //     transitive.depends.iter().fold(0, |sum, (_, deps)| sum + deps.len()),
-    //     transitive.reverse_depends.iter().find(|(k, _)| crate_name("tar") == k.name).unwrap().1.len(),
-    // );
-    // println!("{:#?}", transitive);
+    // let crates = test()?;
+    //let pb = setup_progress_bar(crates.len());
 
+    // let (uni, rows) = universe(crates, &pb);
+
+    // for (k, v) in uni.reverse_depends.iter() {
+    //     if k.name == crate_name("tar") {
+    //         println!("{:?}: {}", k, v.len());
+    //     }
+    //     //println!("{:?}: {}", k, v.len());
+    // }
+    // println!();
+    // for row in rows.iter() {
+    //     if row.name == crate_name("tar") {
+    //         println!("{:?}: {}", row, row.counts);
+    //     }
+    // }
+    let table = load_computed()?
+        .into_iter()
+        .filter(|k| k.name == crate_name("tar"))
+        .collect::<Vec<_>>();
     //write_json(cargo_tally::JSONFILE, crates)?;
     // or make a new function
-    //write_json(cargo_tally::COMPFILE, transitive)?;
+    draw_graph("tar", table.as_ref());
+    // write_json(cargo_tally::COMPFILE, rows)?;
+    
     //pb.finish_and_clear();
     Ok(())
 }
@@ -196,25 +224,25 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     crates
 }
 
-fn compute_transitive(crates: &[Crate], pb: &ProgressBar) -> Vec<TranitiveCrateDeps> {
-    let mut ret = Vec::new();
-    for krate in crates.iter().take(1) {
-        let t_dep = TranitiveCrateDeps::calc_dependencies(crates, krate, pb);
-        // println!("{:?}", t_dep);
-        ret.push(t_dep);
+// fn compute_transitive(crates: &[Crate], pb: &ProgressBar) -> Vec<TranitiveCrateDeps> {
+//     let mut ret = Vec::new();
+//     for krate in crates.iter().take(1) {
+//         let t_dep = TranitiveCrateDeps::calc_dependencies(crates, krate, pb);
+//         // println!("{:?}", t_dep);
+//         ret.push(t_dep);
         
-        //pb.inc(1);
-    }
+//         //pb.inc(1);
+//     }
 
-    // TODO remove
-    for dep in ret.iter() {
-        println!("name: {} count: {}", dep.name, dep.depended_on.len());
-    }
-    if let Some(tokio) = ret.iter().find(|d| d.name == "tokio") {
-        println!("name: {} count: {}", tokio.name, tokio.depended_on.len());
-    }
-    ret
-}
+//     // TODO remove
+//     for dep in ret.iter() {
+//         println!("name: {} count: {}", dep.name, dep.depended_on.len());
+//     }
+//     if let Some(tokio) = ret.iter().find(|d| d.name == "tokio") {
+//         println!("name: {} count: {}", tokio.name, tokio.depended_on.len());
+//     }
+//     ret
+// }
 
 fn write_json<T: serde::Serialize>(file: &str, crates: Vec<T>) -> Result<()> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -267,4 +295,75 @@ fn classify_commit(commit: &Commit) -> CommitType {
     } else {
         CommitType::Manual
     }
+}
+
+
+use gnuplot::{
+    AlignLeft, AlignTop, Auto, AxesCommon, Color, Figure, Fix, Graph, LineWidth,
+    MajorScale, Placement,
+};
+use chrono::{NaiveDate, NaiveTime};
+use palette;
+use palette::{Hue, Srgb};
+
+use cargo_tally::Row;
+
+fn draw_graph(args: &str, table: &[Row]) {
+    let mut colors = Vec::new();
+    let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
+    let n = 1;
+    for i in 0..n {
+        let linear = primary.shift_hue(360.0 * ((i + 1) as f32) / (n as f32));
+        let srgb = Srgb::from_linear(linear.into()).into_format::<u8>();
+        let hex = format!("#{:02X}{:02X}{:02X}", srgb.red, srgb.green, srgb.blue);
+        colors.push(hex);
+        //captions.push(&args.crates[i].replace('_', "\\\\_"));
+    }
+
+    let mut fg = Figure::new();
+    {
+        // Create plot
+        let axes = fg.axes2d();
+        axes.set_title("testing tar transitive deps", &[]);
+        axes.set_x_range(
+            Fix(float_year(&table[0].timestamp) - 0.3),
+            Fix(float_year(&Utc::now()) + 0.15),
+        );
+        axes.set_y_range(Fix(0.0), Auto);
+        axes.set_x_ticks(Some((Fix(1.0), 12)), &[MajorScale(2.0)], &[]);
+        axes.set_legend(
+            Graph(0.05),
+            Graph(0.9),
+            &[Placement(AlignLeft, AlignTop)],
+            &[],
+        );
+
+        // Create x-axis
+        let mut x = Vec::new();
+        for row in table {
+            x.push(float_year(&row.timestamp));
+        }
+
+        // Create series
+        for i in 0..n {
+            let mut y = Vec::new();
+            for row in table {
+                y.push(row.counts);
+            }
+            axes.lines(
+                &x,
+                &y,
+                &[LineWidth(1.5), Color(&colors[i])],
+            );
+        }
+    }
+    fg.show();
+}
+fn float_year(dt: &DateTime) -> f64 {
+    let nd = NaiveDate::from_ymd(2017, 1, 1);
+    let nt = NaiveTime::from_hms_milli(0, 0, 0, 0);
+    let base = DateTime::from_utc(NaiveDateTime::new(nd, nt), Utc);
+    let offset = dt.signed_duration_since(base);
+    let year = offset.num_minutes() as f64 / 525_960.0 + 2017.0;
+    year
 }
