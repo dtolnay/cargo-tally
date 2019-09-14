@@ -1,10 +1,10 @@
 mod dir;
 mod error;
-mod transitive;
 
-use cargo_tally::{Crate, universe, intern::crate_name};
+use cargo_tally::{TranitiveDep, Crate};
 use chrono::{NaiveDateTime, Utc};
-use flate2::write::{GzEncoder, GzDecoder};
+use flate2::write::GzEncoder;
+use flate2::read::GzDecoder;
 use flate2::Compression;
 use git2::{Commit, Repository};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
@@ -12,6 +12,9 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use semver::Version;
 use structopt::StructOpt;
+use pre_calc::{Row, crate_name, universe};
+
+use rayon::prelude::*;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap as Map;
@@ -52,26 +55,46 @@ fn test() -> Result<Vec<Crate>> {
     Ok(ret)
 }
 
-fn load_computed() -> Result<Vec<Row>> {
+/// Returns time sorted `Vec<Row>`  
+// TODO decomp and deserialization is SLOW make obj smaller!!!
+fn load_computed() -> Result<Vec<TranitiveDep>> {
+    // let krates = json
+    //     .par_lines()
+    //     .map(|line| {
+    //         serde_json::from_str(line)?
+    //     })
+    //     .collect::<Vec<Row>>();
+    
     let pb = setup_progress_bar(100_000);
-    let json_path = Path::new("./computed.json");
+    let json_path = Path::new("./computed.json.gz");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
+ 
+    let file = fs::File::open(json_path)?;
+    let mut decoder = GzDecoder::new(file);
+    let mut decompressed = String::new();
+    decoder.read_to_string(&mut decompressed)?; 
 
-    let mut krates = Vec::new();
-    // let file = fs::File::open(json_path)?;
-    // let mut decoder = GzDecoder::new(file);
-    // let mut decompressed = Vec::new();
-    // decoder.read_to_end(&mut decompressed)?;
-    let json = fs::read(json_path)?;
-    let de = serde_json::Deserializer::from_slice(&json);
-    for line in pb.wrap_iter(de.into_iter::<Row>()) {
-        let krate = line?;
-        krates.push(krate);
-    }
+    let mut krates = decompressed
+        .par_lines()
+        .map(|line| {
+            serde_json::from_str(line)
+            .map_err(|e| {
+                panic!("{:?}", e)
+            })
+            .unwrap()
+        })
+        .collect::<Vec<TranitiveDep>>();
+    // let de = serde_json::Deserializer::from_slice(&decompressed);
+    // let mut krates = Vec::new();
+    // for line in pb.wrap_iter(de.into_iter::<TransitiveDep>()) {
+    //     let krate = line?;
+    //     krates.push(krate);
+    // }
     pb.finish_and_clear();
-    
+
+    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     Ok(krates)
 }
 
@@ -84,31 +107,18 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    // let crates = test()?;
-    //let pb = setup_progress_bar(crates.len());
+    let crates = test()?;
+    let pb = setup_progress_bar(crates.len());
 
-    // let (uni, rows) = universe(crates, &pb);
+    // let table = load_computed()?
+    //     .into_iter()
+    //     .filter(|k| k.name == crate_name("serde"))
+    //     .collect::<Vec<_>>();
+    // draw_graph("serde", table.as_ref());
 
-    // for (k, v) in uni.reverse_depends.iter() {
-    //     if k.name == crate_name("tar") {
-    //         println!("{:?}: {}", k, v.len());
-    //     }
-    //     //println!("{:?}: {}", k, v.len());
-    // }
-    // println!();
-    // for row in rows.iter() {
-    //     if row.name == crate_name("tar") {
-    //         println!("{:?}: {}", row, row.counts);
-    //     }
-    // }
-    let table = load_computed()?
-        .into_iter()
-        .filter(|k| k.name == crate_name("tar"))
-        .collect::<Vec<_>>();
-    //write_json(cargo_tally::JSONFILE, crates)?;
-    // or make a new function
-    draw_graph("tar", table.as_ref());
-    // write_json(cargo_tally::COMPFILE, rows)?;
+    let mut rows = universe(crates, &pb);
+    rows.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(cargo_tally::COMPFILE, rows)?;
     
     //pb.finish_and_clear();
     Ok(())
@@ -224,26 +234,6 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     crates
 }
 
-// fn compute_transitive(crates: &[Crate], pb: &ProgressBar) -> Vec<TranitiveCrateDeps> {
-//     let mut ret = Vec::new();
-//     for krate in crates.iter().take(1) {
-//         let t_dep = TranitiveCrateDeps::calc_dependencies(crates, krate, pb);
-//         // println!("{:?}", t_dep);
-//         ret.push(t_dep);
-        
-//         //pb.inc(1);
-//     }
-
-//     // TODO remove
-//     for dep in ret.iter() {
-//         println!("name: {} count: {}", dep.name, dep.depended_on.len());
-//     }
-//     if let Some(tokio) = ret.iter().find(|d| d.name == "tokio") {
-//         println!("name: {} count: {}", tokio.name, tokio.depended_on.len());
-//     }
-//     ret
-// }
-
 fn write_json<T: serde::Serialize>(file: &str, crates: Vec<T>) -> Result<()> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
 
@@ -306,9 +296,7 @@ use chrono::{NaiveDate, NaiveTime};
 use palette;
 use palette::{Hue, Srgb};
 
-use cargo_tally::Row;
-
-fn draw_graph(args: &str, table: &[Row]) {
+fn draw_graph(krate: &str, table: &[TranitiveDep]) {
     let mut colors = Vec::new();
     let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
     let n = 1;
@@ -324,7 +312,7 @@ fn draw_graph(args: &str, table: &[Row]) {
     {
         // Create plot
         let axes = fg.axes2d();
-        axes.set_title("testing tar transitive deps", &[]);
+        axes.set_title(&format!("testing {} transitive deps", krate), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
             Fix(float_year(&Utc::now()) + 0.15),
@@ -348,7 +336,7 @@ fn draw_graph(args: &str, table: &[Row]) {
         for i in 0..n {
             let mut y = Vec::new();
             for row in table {
-                y.push(row.counts);
+                y.push(row.count);
             }
             axes.lines(
                 &x,

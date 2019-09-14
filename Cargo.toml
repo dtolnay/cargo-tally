@@ -32,7 +32,7 @@ structopt = "0.2"
 url = "1.6"
 
 [workspace]
-members = ["index"]
+members = ["index", "pre-calc"]
 
 [badges]
 travis-ci = { repository = "dtolnay/cargo-tally" }
