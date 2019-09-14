@@ -110,17 +110,17 @@ fn main() -> Result<()> {
     let crates = test()?;
     let pb = setup_progress_bar(crates.len());
 
-    // let table = load_computed()?
-    //     .into_iter()
-    //     .filter(|k| k.name == crate_name("serde"))
-    //     .collect::<Vec<_>>();
-    // draw_graph("serde", table.as_ref());
+    let table = load_computed()?
+        .into_iter()
+        .filter(|k| k.name == "serde")
+        .collect::<Vec<_>>();
+    draw_graph("serde", table.as_ref());
 
-    let mut rows = universe(crates, &pb);
-    rows.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(cargo_tally::COMPFILE, rows)?;
+    // let mut rows = universe(crates, &pb);
+    // rows.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(cargo_tally::COMPFILE, rows)?;
     
-    //pb.finish_and_clear();
+    pb.finish_and_clear();
     Ok(())
 }
 
