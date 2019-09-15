@@ -38,7 +38,6 @@ struct Opts {
 
 fn test() -> Result<Vec<Crate>> {
     let pb = setup_progress_bar(100_000);
-
     let json_path = Path::new("../tally.json");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)

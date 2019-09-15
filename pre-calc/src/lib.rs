@@ -53,6 +53,7 @@ pub struct Universe {
     pub(crate) crates: Map<CrateName, Vec<Metadata>>,
     pub depends: Map<CrateKey, Vec<CrateKey>>,
     pub reverse_depends: Map<CrateKey, Set<CrateKey>>,
+    pub dir_depends: Map<CrateKey, Vec<CrateKey>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,6 +74,7 @@ impl Universe {
             crates: Map::default(),
             depends: Map::default(),
             reverse_depends: Map::default(),
+            dir_depends: Map::default(),
         }
     }
 
@@ -172,7 +174,11 @@ impl Universe {
                 .or_insert_with(Set::default)
                 .insert(key);
         }
+        // TODO how is this connected
         self.depends
+            .insert(key, t_resolve.crates.keys().cloned().collect());
+
+        self.dir_depends
             .insert(key, d_resolve.crates.keys().cloned().collect());
     }
 
@@ -199,7 +205,7 @@ impl Universe {
             dir_counts: {
                     set.clear();
                     let key = CrateKey::new(name, index);
-                    set.extend(self.depends[&key].iter().map(|key| key.name));
+                    set.extend(self.dir_depends[&key].iter().map(|key| key.name));
                     set.len()
                 },
             total: self.crates.len(),
