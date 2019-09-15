@@ -1,3 +1,5 @@
+mod intern;
+
 use indicatif::ProgressBar;
 use log::{debug, info};
 use semver_parser::range::{self, Op::Compatible, Predicate};
@@ -8,7 +10,8 @@ use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TranitiveDep};
 
 use std::u64;
 
-pub use cargo_tally::{Crate, intern::{CrateName, crate_name}};
+pub use intern::{crate_name, CrateName};
+pub use cargo_tally::Crate;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct CrateKey {
@@ -59,7 +62,8 @@ pub struct Row {
     pub num: Version,
     pub deps: Vec<Metadata>,
     // TODO what to do about Vec<usize> remove for now just usize
-    pub counts: usize,
+    pub tran_counts: usize,
+    pub dir_counts: usize,
     pub total: usize,
 }
 
@@ -73,63 +77,66 @@ impl Universe {
     }
 
     fn process_event(&mut self, event: Event) {
-            // TODO update redos and pin version nums
+        info!("processing event {} {}", event.name, event.num);
 
-            info!("processing event {} {}", event.name, event.num);
+        let mut redo = Set::default();
+        // does this makes sure we only calculate each crates deps once?
+        if let Some(prev) = self.crates.get(&event.name) {
+            let key = CrateKey::new(event.name, prev.len() as u32 - 1);
 
-            let mut redo = Set::default();
-            if let Some(prev) = self.crates.get(&event.name) {
-                let key = CrateKey::new(event.name, prev.len() as u32 - 1);
-                for dep in &self.depends[&key] {
-                    self.reverse_depends.get_mut(dep).unwrap().remove(&key);
-                }
-                self.depends.remove(&key);
-                for (i, metadata) in prev.iter().enumerate() {
-                    if compatible_req(&metadata.num).matches(&event.num) {
-                        let key = CrateKey::new(event.name, i as u32);
-                        for node in self.reverse_depends[&key].clone() {
-                            for dep in &self.depends[&node] {
-                                self.reverse_depends.get_mut(dep).unwrap().remove(&node);
-                            }
-                            redo.insert(node);
+            println!("{:?}", key);
+
+            for dep in &self.depends[&key] {
+                self.reverse_depends.get_mut(dep).unwrap().remove(&key);
+            }
+            self.depends.remove(&key);
+            for (i, metadata) in prev.iter().enumerate() {
+                if compatible_req(&metadata.num).matches(&event.num) {
+                    let key = CrateKey::new(event.name, i as u32);
+                    for node in self.reverse_depends[&key].clone() {
+                        for dep in &self.depends[&node] {
+                            println!("{:?} {:?} {:?}", key, node, dep);
+                            self.reverse_depends.get_mut(dep).unwrap().remove(&node);
                         }
+                        redo.insert(node);
                     }
                 }
             }
+        }
 
-            // Fix up silly wildcard deps by pinning them to versions compatible
-            // with the latest release of the dep
-            let mut dependencies = event.dependencies;
-            let version_max = Version::new(u64::MAX, u64::MAX, u64::MAX);
-            for dep in &mut dependencies {
-                if dep.req.matches(&version_max) {
-                    let name = crate_name(&*dep.name);
-                    if let Some(releases) = self.crates.get(&name) {
-                        dep.req = compatible_req(&releases.last().unwrap().num);
-                    }
+        // Fix up silly wildcard deps by pinning them to versions compatible
+        // with the latest release of the dep
+        let mut dependencies = event.dependencies;
+        let version_max = Version::new(u64::MAX, u64::MAX, u64::MAX);
+        for dep in &mut dependencies {
+            if dep.req.matches(&version_max) {
+                let name = crate_name(&*dep.name);
+                if let Some(releases) = self.crates.get(&name) {
+                    dep.req = compatible_req(&releases.last().unwrap().num);
                 }
-            }                 
-            let metadata = Metadata {
-                num: event.num,
-                created_at: event.timestamp,
-                features: event.features,
-                dependencies,
-            };
-
-            // index is which dependency we mean in terms of Metadata
-            let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
-            let key = CrateKey::new(event.name, index as u32);
-
-            self.resolve_and_add_to_graph(key, &metadata);
-
-            self.reverse_depends.insert(key, Set::default());
-            self.crates.get_mut(&event.name).unwrap().push(metadata);
-
-            for outdated in redo {
-                let metadata = self.crates[&outdated.name][outdated.index as usize].clone();
-                debug!("re-resolving {} {}", outdated.name, metadata.num);
-                self.resolve_and_add_to_graph(outdated, &metadata);
             }
+        }                 
+        let metadata = Metadata {
+            num: event.num,
+            created_at: event.timestamp,
+            features: event.features,
+            dependencies,
+        };
+
+        // index is which dependency we mean in terms of Metadata
+        let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
+        let key = CrateKey::new(event.name, index as u32);
+
+        self.resolve_and_add_to_graph(key, &metadata);
+
+        self.reverse_depends.insert(key, Set::default());
+        self.crates.get_mut(&event.name).unwrap().push(metadata);
+
+        for outdated in redo {
+            let metadata = self.crates[&outdated.name][outdated.index as usize].clone();
+            debug!("re-resolving {} {}", outdated.name, metadata.num);
+            self.resolve_and_add_to_graph(outdated, &metadata);
+        }
     }
 
     fn resolve(&self, name: &str, req: &VersionReq) -> Option<u32> {
@@ -143,25 +150,27 @@ impl Universe {
     }
 
     fn resolve_and_add_to_graph(&mut self, key: CrateKey, metadata: &Metadata) {
-        let mut resolve = Resolve { crates: Map::default(), };
+        let mut t_resolve = Resolve { crates: Map::default(), };
+        let mut d_resolve = Resolve { crates: Map::default(), };
 
         for dep in metadata.dependencies.iter() {
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
                 let name = crate_name(&dep.name);
                 let key = CrateKey { name, index, };
                 // RECURSIVELY walk deps of deps ect.
-                resolve.add_crate(self, key, dep.default_features, &dep.features);
+                t_resolve.add_crate(self, key, dep.default_features, &dep.features);
+                d_resolve.crates.insert(key, ResolvedCrate::no_resolve());
             }
         }
 
-        for dep in resolve.crates.keys() {
+        for dep in t_resolve.crates.keys() {
             self.reverse_depends
                 .entry(*dep)
                 .or_insert_with(Set::default)
                 .insert(key);
         }
         self.depends
-            .insert(key, resolve.crates.keys().cloned().collect());
+            .insert(key, d_resolve.crates.keys().cloned().collect());
     }
 
     fn compute_counts(
@@ -170,7 +179,7 @@ impl Universe {
         name: CrateName,
         num: Version,
         deps: Vec<Metadata>,
-        matcher: &Matcher,
+        index: u32,
     ) -> Row {
         let mut set = Set::default();
         Row {
@@ -178,12 +187,16 @@ impl Universe {
             name,
             num,
             deps,
-            counts: {
+            tran_counts: {
                     set.clear();
-                    for index in matcher.nodes.iter() {
-                        let key = CrateKey::new(matcher.name, *index);
-                        set.extend(self.reverse_depends[&key].iter().map(|key| key.name));
-                    }
+                    let key = CrateKey::new(name, index);
+                    set.extend(self.reverse_depends[&key].iter().map(|key| key.name));
+                    set.len()
+                },
+            dir_counts: {
+                    set.clear();
+                    let key = CrateKey::new(name, index);
+                    set.extend(self.depends[&key].iter().map(|key| key.name));
                     set.len()
                 },
             total: self.crates.len(),
@@ -195,13 +208,11 @@ impl Universe {
 struct Resolve {
     crates: Map<CrateKey, ResolvedCrate>,
 }
-
 #[derive(Debug)]
 struct ResolvedCrate {
     features: Set<String>,
     resolved: Vec<Option<u32>>,
 }
-
 impl ResolvedCrate {
     fn no_resolve() -> Self {
         ResolvedCrate {
@@ -369,17 +380,16 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
-pub fn universe(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
+pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
     let mut universe = Universe::new();
     let mut table = Vec::new();
     for krate in crates {
         pb.inc(1);
 
         let name = crate_name(&krate.name);
-        let timestamp = krate.published.unwrap(); 
+        let timestamp = krate.published.unwrap();
+        let ver = krate.version.clone();
         
-        let mut matcher = create_matcher(&krate.name);
-
         let ev = Event {
             name,
             num: krate.version.clone(),
@@ -390,25 +400,62 @@ pub fn universe(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
 
         universe.process_event(ev);
 
-        if matcher.name == name && matcher.req.matches(&krate.version) {
-            matcher.nodes.push(universe.crates[&name].len() as u32 - 1);
-        }
-
         let deps = universe.crates[&name].clone();
-        let row = universe.compute_counts(timestamp, name, krate.version.clone(), deps, &matcher);
+        let idx = universe.crates[&name].len() as u32 - 1;
+        let row = universe.compute_counts(timestamp, name, ver, deps, idx);
         table.push(TranitiveDep {
             name: krate.name,
             timestamp,
             version: krate.version,
-            count: row.counts,
-            total: row.total
+            transitive_count: row.tran_counts,
+            direct_count: row.dir_counts,
+            total: row.total,
         });
     }
     table
 }
 
 
+// pub fn universe(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
+//     let mut universe = Universe::new();
+//     let mut table = Vec::new();
+//     for krate in crates {
+//         pb.inc(1);
 
+//         let name = crate_name(&krate.name);
+//         let timestamp = krate.published.unwrap();
+//         let ver = krate.version.clone();
+        
+//         let mut matcher = create_matcher(&krate.name);
+
+//         let ev = Event {
+//             name,
+//             num: krate.version.clone(),
+//             timestamp,
+//             features: krate.features,
+//             dependencies: krate.dependencies,
+//         };
+
+//         universe.process_event(ev);
+
+//         if matcher.name == name && matcher.req.matches(&krate.version) {
+//             matcher.nodes.push(universe.crates[&name].len() as u32 - 1);
+//         }
+
+//         let deps = universe.crates[&name].clone();
+//         let idx = universe.crates[&name].len() as u32 - 1;
+//         let row = universe.compute_counts(timestamp, name, ver, deps, idx);
+//         table.push(TranitiveDep {
+//             name: krate.name,
+//             timestamp,
+//             version: krate.version,
+//             transitive_count: row.tran_counts,
+//             direct_count: row.dir_counts,
+//             total: row.total,
+//         });
+//     }
+//     table
+// }
 
 #[cfg(test)]
 mod tests {

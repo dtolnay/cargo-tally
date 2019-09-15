@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use semver::Version;
 use structopt::StructOpt;
-use pre_calc::{Row, crate_name, universe};
+use pre_calc::{Row, crate_name, pre_compute_graph};
 
 use rayon::prelude::*;
 
@@ -57,16 +57,8 @@ fn test() -> Result<Vec<Crate>> {
 
 /// Returns time sorted `Vec<Row>`  
 // TODO decomp and deserialization is SLOW make obj smaller!!!
-fn load_computed() -> Result<Vec<TranitiveDep>> {
-    // let krates = json
-    //     .par_lines()
-    //     .map(|line| {
-    //         serde_json::from_str(line)?
-    //     })
-    //     .collect::<Vec<Row>>();
-    
-    let pb = setup_progress_bar(100_000);
-    let json_path = Path::new("./computed.json.gz");
+fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
+    let json_path = Path::new("../computed.json.gz");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
@@ -107,18 +99,19 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
+    let pb = setup_progress_bar(139_079);
+
+    // let table = load_computed(&pb)?
+    //     .into_par_iter()
+    //     .inspect(|_| pb.inc(1))
+    //     .filter(|k| k.name == "serde")
+    //     .collect::<Vec<_>>();
+    // draw_graph("serde", table.as_ref());
+
     let crates = test()?;
-    let pb = setup_progress_bar(crates.len());
-
-    let table = load_computed()?
-        .into_iter()
-        .filter(|k| k.name == "serde")
-        .collect::<Vec<_>>();
-    draw_graph("serde", table.as_ref());
-
-    // let mut rows = universe(crates, &pb);
-    // rows.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    // write_json(cargo_tally::COMPFILE, rows)?;
+    let mut rows = pre_compute_graph(crates, &pb);
+    rows.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(cargo_tally::COMPFILE, rows)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -336,7 +329,7 @@ fn draw_graph(krate: &str, table: &[TranitiveDep]) {
         for i in 0..n {
             let mut y = Vec::new();
             for row in table {
-                y.push(row.count);
+                y.push(row.transitive_count);
             }
             axes.lines(
                 &x,
