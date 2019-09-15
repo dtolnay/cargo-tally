@@ -99,7 +99,7 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    let pb = setup_progress_bar(139_079);
+    // let pb = setup_progress_bar(139_079);
 
     // let table = load_computed(&pb)?
     //     .into_par_iter()
@@ -109,9 +109,10 @@ fn main() -> Result<()> {
     // draw_graph("serde", table.as_ref());
 
     let crates = test()?;
-    let mut rows = pre_compute_graph(crates, &pb);
-    rows.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(cargo_tally::COMPFILE, rows)?;
+    let pb = setup_progress_bar(crates.len());
+    let mut krates = pre_compute_graph(crates, &pb);
+    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(cargo_tally::COMPFILE, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -139,7 +140,7 @@ fn setup_progress_bar(len: usize) -> ProgressBar {
     let pb = ProgressBar::new(len as u64);
     let style = ProgressStyle::default_bar()
         .template("[{wide_bar:.cyan/blue}] {percent}%")
-        .progress_chars("&&.");
+        .progress_chars("=>.");
     pb.set_style(style);
     pb.set_draw_target(ProgressDrawTarget::stderr());
     pb

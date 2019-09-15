@@ -84,7 +84,7 @@ impl Universe {
         if let Some(prev) = self.crates.get(&event.name) {
             let key = CrateKey::new(event.name, prev.len() as u32 - 1);
 
-            println!("{:?}", key);
+            // println!("{:?}", key);
 
             for dep in &self.depends[&key] {
                 self.reverse_depends.get_mut(dep).unwrap().remove(&key);
@@ -95,7 +95,9 @@ impl Universe {
                     let key = CrateKey::new(event.name, i as u32);
                     for node in self.reverse_depends[&key].clone() {
                         for dep in &self.depends[&node] {
-                            println!("{:?} {:?} {:?}", key, node, dep);
+
+                            // println!("{:?} {:?} {:?}", key, node, dep);
+
                             self.reverse_depends.get_mut(dep).unwrap().remove(&node);
                         }
                         redo.insert(node);
@@ -157,9 +159,10 @@ impl Universe {
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
                 let name = crate_name(&dep.name);
                 let key = CrateKey { name, index, };
-                // RECURSIVELY walk deps of deps ect.
-                t_resolve.add_crate(self, key, dep.default_features, &dep.features);
+                // direct dependencies
                 d_resolve.crates.insert(key, ResolvedCrate::no_resolve());
+                // transitive dependencies RECURSIVELY walk deps of deps ect.
+                t_resolve.add_crate(self, key, dep.default_features, &dep.features);
             }
         }
 
