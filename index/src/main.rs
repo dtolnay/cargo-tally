@@ -22,7 +22,6 @@ use std::collections::BTreeMap as Map;
 use std::fs;
 use std::io::{self, Write, Read};
 use std::path::{Path, PathBuf};
-use std::process;
 
 use crate::error::{Error, Result};
 
@@ -161,22 +160,20 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    let pb = setup_progress_bar(139_079);
-    let table = load_computed(&pb)?
-        .into_par_iter()
-        .inspect(|_| pb.inc(1))
-        .filter(|row| matching_crates(row, &["serde:1.0", "serde:0.8"]))
-        .collect::<Vec<_>>();
-    draw_graph("serde", table.as_ref());
+    // let pb = setup_progress_bar(139_079);
+    // let table = load_computed(&pb)?
+    //     .into_par_iter()
+    //     .inspect(|_| pb.inc(1))
+    //     .filter(|row| matching_crates(row, &["serde:1.0", "serde:0.8"]))
+    //     .collect::<Vec<_>>();
+    // draw_graph("serde", table.as_ref());
 
-    // let crates = test()?;
-
-    // let pb = setup_progress_bar(crates.len());
-    // pb.set_message("Computing direct and transitive dependencies");
-
-    // let mut krates = pre_compute_graph(crates, &pb);
-    // krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    // write_json(cargo_tally::COMPFILE, krates)?;
+    let crates = test()?;
+    let pb = setup_progress_bar(crates.len());
+    pb.set_message("Computing direct and transitive dependencies");
+    let mut krates = pre_compute_graph(crates, &pb);
+    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(cargo_tally::COMPFILE, krates)?;
     
     pb.finish_and_clear();
     Ok(())

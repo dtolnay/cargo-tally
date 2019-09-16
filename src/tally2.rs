@@ -97,19 +97,6 @@ fn matching_crates(krate: &TranitiveDep, search: &[String]) -> bool {
         .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
 }
 
-pub(crate) fn tally2(args: &Args) -> error::Result<()> {
-    // TODO prgressBar needs to have an actual len
-    let pb = ProgressBar::new(139_000);
-    pb.set_message("FIX ME");
-
-    let table = load_computed(&pb)?
-        .into_par_iter()
-        .filter(|k| matching_crates(k, &args.crates))
-        .collect::<Vec<_>>();
-    draw_graph2(args, table.as_ref());
-    Ok(())
-}
-
 fn draw_graph2(args: &Args, table: &[TranitiveDep]) {
     let mut colors = Vec::new();
     let mut captions = Vec::new();
@@ -184,4 +171,18 @@ fn float_year(dt: &DateTime) -> f64 {
     let offset = dt.signed_duration_since(base);
     let year = offset.num_minutes() as f64 / 525_960.0 + 2017.0;
     year
+}
+
+pub(crate) fn tally2(args: &Args) -> error::Result<()> {
+    // TODO prgressBar needs to have an actual len
+    let pb = ProgressBar::new(139_079);
+    pb.set_message("FIX ME");
+
+    let table = load_computed(&pb)?
+        .into_par_iter()
+        .filter(|k| matching_crates(k, &args.crates))
+        .collect::<Vec<_>>();
+    
+    draw_graph2(args, table.as_ref());
+    Ok(())
 }

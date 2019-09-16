@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use semver::{Version, VersionReq};
 use semver_parser::range::{self, Op::Compatible, Predicate};
 
-
 use std::u64;
 
 pub use cargo_tally::Crate;
