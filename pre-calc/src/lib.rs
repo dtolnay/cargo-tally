@@ -1,17 +1,18 @@
 mod intern;
 
+use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TranitiveDep};
+use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::ProgressBar;
 use log::{debug, info};
-use semver_parser::range::{self, Op::Compatible, Predicate};
 use serde::{Deserialize, Serialize};
-use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use semver::{Version, VersionReq};
-use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TranitiveDep};
+use semver_parser::range::{self, Op::Compatible, Predicate};
+
 
 use std::u64;
 
-pub use intern::{crate_name, CrateName};
 pub use cargo_tally::Crate;
+pub use intern::{crate_name, CrateName};
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct CrateKey {
@@ -22,13 +23,6 @@ impl CrateKey {
     fn new(name: CrateName, index: u32) -> Self {
         CrateKey { name, index }
     }
-}
-
-#[derive(Debug)]
-struct Matcher {
-    name: CrateName,
-    req: VersionReq,
-    nodes: Vec<u32>,
 }
 
 #[derive(Debug)]
@@ -53,7 +47,7 @@ pub struct Universe {
     pub(crate) crates: Map<CrateName, Vec<Metadata>>,
     pub depends: Map<CrateKey, Vec<CrateKey>>,
     pub reverse_depends: Map<CrateKey, Set<CrateKey>>,
-    pub dir_depends: Map<CrateKey, Vec<CrateKey>>,
+    pub dir_depends: Map<CrateName, Set<CrateKey>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -153,33 +147,41 @@ impl Universe {
             .map(|(i, _)| i as u32)
     }
 
-    fn resolve_and_add_to_graph(&mut self, key: CrateKey, metadata: &Metadata) {
-        let mut t_resolve = Resolve { crates: Map::default(), };
+    fn  resolve_and_add_to_graph(&mut self, key: CrateKey, metadata: &Metadata) {
         let mut d_resolve = Resolve { crates: Map::default(), };
+        let mut t_resolve = Resolve { crates: Map::default(), };
 
         for dep in metadata.dependencies.iter() {
+            // if the crate is in cratesio at the right version number
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
                 let name = crate_name(&dep.name);
                 let key = CrateKey { name, index, };
-                // direct dependencies
+                // direct deps just match and insert
                 d_resolve.crates.insert(key, ResolvedCrate::no_resolve());
                 // transitive dependencies RECURSIVELY walk deps of deps ect.
                 t_resolve.add_crate(self, key, dep.default_features, &dep.features);
             }
         }
 
+        // add `CrateKey`s of packages that use current crate's `Metadata`
+        // transitive deps
         for dep in t_resolve.crates.keys() {
             self.reverse_depends
                 .entry(*dep)
                 .or_insert_with(Set::default)
                 .insert(key);
         }
+        // TODO calculate direct deps too
+        for dep in d_resolve.crates.keys() {
+            self.dir_depends
+                .entry(dep.name)
+                .or_insert_with(Set::default)
+                .insert(key);
+        }
+        
         // TODO how is this connected
         self.depends
             .insert(key, t_resolve.crates.keys().cloned().collect());
-
-        self.dir_depends
-            .insert(key, d_resolve.crates.keys().cloned().collect());
     }
 
     fn compute_counts(
@@ -204,9 +206,12 @@ impl Universe {
                 },
             dir_counts: {
                     set.clear();
-                    let key = CrateKey::new(name, index);
-                    set.extend(self.dir_depends[&key].iter().map(|key| key.name));
-                    set.len()
+                    if let Some(deps) = self.dir_depends.get(&name) {
+                        set.extend(deps.iter().map(|key| key.name));
+                        set.len()
+                    } else {
+                        0
+                    }
                 },
             total: self.crates.len(),
         }
@@ -354,20 +359,6 @@ impl Resolve {
     }
 }
 
-fn create_matcher(krate: &str) -> Matcher {
-    // TODO clean up move Error and Result to right place when ready
-    // use self::error::Error;
-    let mut pieces = krate.splitn(2, ':');
-    Matcher {
-        name: crate_name(pieces.next().unwrap()),
-        req: match pieces.next().unwrap_or("*").parse() {
-            Ok(req) => req,
-            Err(err) => panic!("{:?}", err),
-        },
-        nodes: Vec::new(),
-    }
-}
-
 fn compatible_req(version: &Version) -> VersionReq {
     use semver::Identifier as SemverId;
     use semver_parser::version::Identifier as ParseId;
@@ -412,6 +403,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         let deps = universe.crates[&name].clone();
         let idx = universe.crates[&name].len() as u32 - 1;
         let row = universe.compute_counts(timestamp, name, ver, deps, idx);
+
         table.push(TranitiveDep {
             name: krate.name,
             timestamp,
@@ -423,48 +415,6 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
     }
     table
 }
-
-
-// pub fn universe(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
-//     let mut universe = Universe::new();
-//     let mut table = Vec::new();
-//     for krate in crates {
-//         pb.inc(1);
-
-//         let name = crate_name(&krate.name);
-//         let timestamp = krate.published.unwrap();
-//         let ver = krate.version.clone();
-        
-//         let mut matcher = create_matcher(&krate.name);
-
-//         let ev = Event {
-//             name,
-//             num: krate.version.clone(),
-//             timestamp,
-//             features: krate.features,
-//             dependencies: krate.dependencies,
-//         };
-
-//         universe.process_event(ev);
-
-//         if matcher.name == name && matcher.req.matches(&krate.version) {
-//             matcher.nodes.push(universe.crates[&name].len() as u32 - 1);
-//         }
-
-//         let deps = universe.crates[&name].clone();
-//         let idx = universe.crates[&name].len() as u32 - 1;
-//         let row = universe.compute_counts(timestamp, name, ver, deps, idx);
-//         table.push(TranitiveDep {
-//             name: krate.name,
-//             timestamp,
-//             version: krate.version,
-//             transitive_count: row.tran_counts,
-//             direct_count: row.dir_counts,
-//             total: row.total,
-//         });
-//     }
-//     table
-// }
 
 #[cfg(test)]
 mod tests {

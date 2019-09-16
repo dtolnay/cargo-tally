@@ -9,10 +9,11 @@ use flate2::Compression;
 use git2::{Commit, Repository};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use lazy_static::lazy_static;
+use pre_calc::{Row, crate_name, pre_compute_graph, CrateName};
 use regex::Regex;
-use semver::Version;
+use semver::{Version, VersionReq};
+use semver_parser::range::{self, Op::Compatible, Predicate};
 use structopt::StructOpt;
-use pre_calc::{Row, crate_name, pre_compute_graph};
 
 use rayon::prelude::*;
 
@@ -36,28 +37,47 @@ struct Opts {
     index: PathBuf,
 }
 
+#[derive(Debug)]
+struct Matcher<'a> {
+    name: &'a str,
+    req: VersionReq,
+    nodes: Vec<u32>,
+}
+
 fn test() -> Result<Vec<Crate>> {
     let pb = setup_progress_bar(100_000);
+    pb.set_message("Loading Crate struct from all tall.json.gz");
+
     let json_path = Path::new("../tally.json");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
 
-    let json = std::fs::read(json_path)?;
-    let de = serde_json::Deserializer::from_slice(&json);
-    let mut ret = Vec::new();
-    for line in pb.wrap_iter(de.into_iter::<Crate>()) {
-        let krate = line?;
-        ret.push(krate);
-    }
+    let json = std::fs::read_to_string(json_path)?;
+    let krates = json.par_lines()
+        .inspect(|_| pb.inc(1))
+        .map(|line| {
+            serde_json::from_str(line)
+            .map_err(|e| {
+                panic!("{:?}", e)
+            })
+            .unwrap()
+        })
+        .collect::<Vec<Crate>>();
+    //let de = serde_json::Deserializer::from_slice(&json);
+    //let mut ret = Vec::new();
+    // for line in pb.wrap_iter(de.into_iter::<Crate>()) {
+    //     let krate = line?;
+    //     ret.push(krate);
+    // }
     pb.finish_and_clear();
-    Ok(ret)
+    Ok(krates)
 }
 
 /// Returns time sorted `Vec<Row>`  
 // TODO decomp and deserialization is SLOW make obj smaller!!!
 fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
-    let json_path = Path::new("../computed.json.gz");
+    let json_path = Path::new("./computed.json.gz");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
@@ -69,6 +89,7 @@ fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
 
     let mut krates = decompressed
         .par_lines()
+        .inspect(|_| pb.inc(1))
         .map(|line| {
             serde_json::from_str(line)
             .map_err(|e| {
@@ -89,6 +110,48 @@ fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
     Ok(krates)
 }
 
+fn create_matchers(search: &str) -> Result<Matcher> {
+
+    let mut pieces = search.splitn(2, ':');
+    let matcher = Matcher {
+        name: pieces.next().unwrap(),
+        req: match pieces.next().unwrap_or("*").parse() {
+            Ok(req) => req,
+            Err(err) => return Err(Error::ParseSeries(search.to_string(), err)),
+        },
+        nodes: Vec::new(),
+    };
+
+    Ok(matcher)
+}
+
+fn compatible_req(version: &Version) -> VersionReq {
+    use semver::Identifier as SemverId;
+    use semver_parser::version::Identifier as ParseId;
+    VersionReq::from(range::VersionReq {
+        predicates: vec![Predicate {
+            op: Compatible,
+            major: version.major,
+            minor: Some(version.minor),
+            patch: Some(version.patch),
+            pre: version
+                .pre
+                .iter()
+                .map(|pre| match *pre {
+                    SemverId::Numeric(n) => ParseId::Numeric(n),
+                    SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
+                })
+                .collect(),
+        }],
+    })
+}
+
+fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
+    search.iter()
+        .map(|&s| create_matchers(s).expect("failed to parse"))
+        .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
+}
+
 // TODO ask about try_main
 fn main() -> Result<()> {
     let opts = Opts::from_args();
@@ -98,20 +161,22 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    // let pb = setup_progress_bar(139_079);
+    let pb = setup_progress_bar(139_079);
+    let table = load_computed(&pb)?
+        .into_par_iter()
+        .inspect(|_| pb.inc(1))
+        .filter(|row| matching_crates(row, &["serde:1.0", "serde:0.8"]))
+        .collect::<Vec<_>>();
+    draw_graph("serde", table.as_ref());
 
-    // let table = load_computed(&pb)?
-    //     .into_par_iter()
-    //     .inspect(|_| pb.inc(1))
-    //     .filter(|k| k.name == "serde")
-    //     .collect::<Vec<_>>();
-    // draw_graph("serde", table.as_ref());
+    // let crates = test()?;
 
-    let crates = test()?;
-    let pb = setup_progress_bar(crates.len());
-    let mut krates = pre_compute_graph(crates, &pb);
-    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(cargo_tally::COMPFILE, krates)?;
+    // let pb = setup_progress_bar(crates.len());
+    // pb.set_message("Computing direct and transitive dependencies");
+
+    // let mut krates = pre_compute_graph(crates, &pb);
+    // krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(cargo_tally::COMPFILE, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -290,6 +355,7 @@ use palette;
 use palette::{Hue, Srgb};
 
 fn draw_graph(krate: &str, table: &[TranitiveDep]) {
+    println!("TABLE LEN {}", table.len());
     let mut colors = Vec::new();
     let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
     let n = 1;
@@ -329,6 +395,7 @@ fn draw_graph(krate: &str, table: &[TranitiveDep]) {
         for i in 0..n {
             let mut y = Vec::new();
             for row in table {
+                println!("{:?}", row);
                 y.push(row.transitive_count);
             }
             axes.lines(
