@@ -53,7 +53,8 @@ fn test() -> Result<Vec<Crate>> {
     }
 
     let json = std::fs::read_to_string(json_path)?;
-    let krates = json.par_lines()
+    let krates = json
+        .par_lines()
         .inspect(|_| pb.inc(1))
         .map(|line| {
             serde_json::from_str(line)
@@ -73,7 +74,7 @@ fn test() -> Result<Vec<Crate>> {
     Ok(krates)
 }
 
-/// Returns time sorted `Vec<Row>`  
+/// Returns time sorted `Vec<TransitiveDep>`  
 // TODO decomp and deserialization is SLOW make obj smaller!!!
 fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
     let json_path = Path::new("./computed.json.gz");
@@ -110,7 +111,6 @@ fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
 }
 
 fn create_matchers(search: &str) -> Result<Matcher> {
-
     let mut pieces = search.splitn(2, ':');
     let matcher = Matcher {
         name: pieces.next().unwrap(),
@@ -160,20 +160,21 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    // let pb = setup_progress_bar(139_079);
-    // let table = load_computed(&pb)?
-    //     .into_par_iter()
-    //     .inspect(|_| pb.inc(1))
-    //     .filter(|row| matching_crates(row, &["serde:1.0", "serde:0.8"]))
-    //     .collect::<Vec<_>>();
-    // draw_graph("serde", table.as_ref());
+    let pb = setup_progress_bar(139_079);
+    let searching = ["serde:0.8", "serde:1.0"];
+    let table = load_computed(&pb)?
+        .into_par_iter()
+        .inspect(|_| pb.inc(1))
+        .filter(|row| matching_crates(row, &searching))
+        .collect::<Vec<_>>();
+    draw_graph(&searching, table.as_ref());
 
-    let crates = test()?;
-    let pb = setup_progress_bar(crates.len());
-    pb.set_message("Computing direct and transitive dependencies");
-    let mut krates = pre_compute_graph(crates, &pb);
-    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(cargo_tally::COMPFILE, krates)?;
+    // let crates = test()?;
+    // let pb = setup_progress_bar(crates.len());
+    // pb.set_message("Computing direct and transitive dependencies");
+    // let mut krates = pre_compute_graph(crates, &pb);
+    // krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(cargo_tally::COMPFILE, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -344,31 +345,44 @@ fn classify_commit(commit: &Commit) -> CommitType {
 
 
 use gnuplot::{
-    AlignLeft, AlignTop, Auto, AxesCommon, Color, Figure, Fix, Graph, LineWidth,
+    AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph, LineWidth,
     MajorScale, Placement,
 };
 use chrono::{NaiveDate, NaiveTime};
 use palette;
 use palette::{Hue, Srgb};
 
-fn draw_graph(krate: &str, table: &[TranitiveDep]) {
+fn version_match(ver: &str, row: &TranitiveDep) -> bool {
+    if let Some(ver) = ver.split(':').nth(1) {
+        let pin_req = format!("^{}", ver);
+        let ver_req = VersionReq::parse(&pin_req).expect("version match");
+        ver_req.matches(&row.version)
+    } else {
+        println!("SHOULD NOT SEE");
+        true
+    }
+    
+}
+
+fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
     println!("TABLE LEN {}", table.len());
     let mut colors = Vec::new();
+    let mut captions = Vec::new();
     let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
-    let n = 1;
+    let n = krates.len();
     for i in 0..n {
         let linear = primary.shift_hue(360.0 * ((i + 1) as f32) / (n as f32));
         let srgb = Srgb::from_linear(linear.into()).into_format::<u8>();
         let hex = format!("#{:02X}{:02X}{:02X}", srgb.red, srgb.green, srgb.blue);
         colors.push(hex);
-        //captions.push(&args.crates[i].replace('_', "\\\\_"));
+        captions.push(krates[i].replace('_', "\\\\_"));
     }
 
     let mut fg = Figure::new();
     {
         // Create plot
         let axes = fg.axes2d();
-        axes.set_title(&format!("testing {} transitive deps", krate), &[]);
+        axes.set_title(&format!("testing {} transitive deps", krates[0]), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
             Fix(float_year(&Utc::now()) + 0.15),
@@ -383,22 +397,26 @@ fn draw_graph(krate: &str, table: &[TranitiveDep]) {
         );
 
         // Create x-axis
-        let mut x = Vec::new();
-        for row in table {
-            x.push(float_year(&row.timestamp));
-        }
+        // let mut x = Vec::new();
+        // for row in table {
+            
+        // }
 
         // Create series
         for i in 0..n {
             let mut y = Vec::new();
+            let mut x = Vec::new();
             for row in table {
                 println!("{:?}", row);
-                y.push(row.transitive_count);
+                if version_match(krates[i], row) {
+                    x.push(float_year(&row.timestamp));
+                    y.push(row.transitive_count);
+                }
             }
             axes.lines(
                 &x,
                 &y,
-                &[LineWidth(1.5), Color(&colors[i])],
+                &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
             );
         }
     }
