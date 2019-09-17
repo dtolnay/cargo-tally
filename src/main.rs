@@ -5,6 +5,7 @@
     clippy::unreadable_literal
 )]
 
+use chrono::Utc;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 
@@ -20,9 +21,12 @@ mod init;
 mod intern;
 mod progress;
 mod tally;
+mod tally2;
 
 use crate::init::init;
 use crate::tally::tally;
+
+use crate::tally2::tally2;
 
 #[derive(StructOpt)]
 #[structopt(bin_name = "cargo")]
@@ -79,7 +83,7 @@ fn main() {
         process::exit(1);
     }
 
-    let result = if args.init { init() } else { tally(&args) };
+    let result = if args.init { init() } else { tally2(&args) };
 
     if let Err(err) = result {
         let _ = writeln!(io::stderr(), "{}", err);

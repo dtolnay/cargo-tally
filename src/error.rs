@@ -35,6 +35,12 @@ impl Display for Error {
     }
 }
 
+impl Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::Io(err)

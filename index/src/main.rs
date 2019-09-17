@@ -1,31 +1,34 @@
 mod dir;
 mod error;
-mod transitive;
 
-use cargo_tally::{Crate, TranitiveCrateDeps, universe, intern::crate_name};
+use cargo_tally::{TranitiveDep, Crate};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
+use flate2::read::GzDecoder;
 use flate2::Compression;
 use git2::{Commit, Repository};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use lazy_static::lazy_static;
+use pre_calc::{Row, crate_name, pre_compute_graph, CrateName};
 use regex::Regex;
-use semver::Version;
+use semver::{Version, VersionReq};
+use semver_parser::range::{self, Op::Compatible, Predicate};
 use structopt::StructOpt;
+
+use rayon::prelude::*;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap as Map;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, Write, Read};
 use std::path::{Path, PathBuf};
-use std::process;
 
 use crate::error::{Error, Result};
 
 const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
 
 type DateTime = chrono::DateTime<Utc>;
-
+// 139_079 crates in crates.io
 #[derive(StructOpt, Debug)]
 struct Opts {
     /// Path containing crates.io-index checkout
@@ -33,20 +36,119 @@ struct Opts {
     index: PathBuf,
 }
 
+#[derive(Debug)]
+struct Matcher<'a> {
+    name: &'a str,
+    req: VersionReq,
+    nodes: Vec<u32>,
+}
+
 fn test() -> Result<Vec<Crate>> {
+    let pb = setup_progress_bar(100_000);
+    pb.set_message("Loading Crate struct from all tall.json.gz");
+
     let json_path = Path::new("../tally.json");
     if !json_path.exists() {
-        panic!("no file")
+        panic!("no file {:?}", json_path)
     }
 
-    let json = std::fs::read(json_path)?;
-    let de = serde_json::Deserializer::from_slice(&json);
-    let mut ret = Vec::new();
-    for line in de.into_iter::<Crate>() {
-        let krate = line?;
-        ret.push(krate);
+    let json = std::fs::read_to_string(json_path)?;
+    let krates = json
+        .par_lines()
+        .inspect(|_| pb.inc(1))
+        .map(|line| {
+            serde_json::from_str(line)
+            .map_err(|e| {
+                panic!("{:?}", e)
+            })
+            .unwrap()
+        })
+        .collect::<Vec<Crate>>();
+    //let de = serde_json::Deserializer::from_slice(&json);
+    //let mut ret = Vec::new();
+    // for line in pb.wrap_iter(de.into_iter::<Crate>()) {
+    //     let krate = line?;
+    //     ret.push(krate);
+    // }
+    pb.finish_and_clear();
+    Ok(krates)
+}
+
+/// Returns time sorted `Vec<TransitiveDep>`  
+// TODO decomp and deserialization is SLOW make obj smaller!!!
+fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
+    let json_path = Path::new("./computed.json.gz");
+    if !json_path.exists() {
+        panic!("no file {:?}", json_path)
     }
-    Ok(ret)
+ 
+    let file = fs::File::open(json_path)?;
+    let mut decoder = GzDecoder::new(file);
+    let mut decompressed = String::new();
+    decoder.read_to_string(&mut decompressed)?; 
+
+    let mut krates = decompressed
+        .par_lines()
+        .inspect(|_| pb.inc(1))
+        .map(|line| {
+            serde_json::from_str(line)
+            .map_err(|e| {
+                panic!("{:?}", e)
+            })
+            .unwrap()
+        })
+        .collect::<Vec<TranitiveDep>>();
+    // let de = serde_json::Deserializer::from_slice(&decompressed);
+    // let mut krates = Vec::new();
+    // for line in pb.wrap_iter(de.into_iter::<TransitiveDep>()) {
+    //     let krate = line?;
+    //     krates.push(krate);
+    // }
+    pb.finish_and_clear();
+
+    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    Ok(krates)
+}
+
+fn create_matchers(search: &str) -> Result<Matcher> {
+    let mut pieces = search.splitn(2, ':');
+    let matcher = Matcher {
+        name: pieces.next().unwrap(),
+        req: match pieces.next().unwrap_or("*").parse() {
+            Ok(req) => req,
+            Err(err) => return Err(Error::ParseSeries(search.to_string(), err)),
+        },
+        nodes: Vec::new(),
+    };
+
+    Ok(matcher)
+}
+
+fn compatible_req(version: &Version) -> VersionReq {
+    use semver::Identifier as SemverId;
+    use semver_parser::version::Identifier as ParseId;
+    VersionReq::from(range::VersionReq {
+        predicates: vec![Predicate {
+            op: Compatible,
+            major: version.major,
+            minor: Some(version.minor),
+            patch: Some(version.patch),
+            pre: version
+                .pre
+                .iter()
+                .map(|pre| match *pre {
+                    SemverId::Numeric(n) => ParseId::Numeric(n),
+                    SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
+                })
+                .collect(),
+        }],
+    })
+}
+
+fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
+    search.iter()
+        .map(|&s| create_matchers(s).expect("failed to parse"))
+        .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
 }
 
 // TODO ask about try_main
@@ -57,32 +159,24 @@ fn main() -> Result<()> {
     // let pb = setup_progress_bar(crates.len());
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
-    let crates = test()?;
-    let pb = setup_progress_bar(crates.len());
-    // let transitive = compute_transitive(&crates, &pb);
-    let mut transitive = universe(&crates, &pb);
-    let tdep = transitive.depends.clone();
 
-    if let Some(krate) = tdep.iter().find(|(k, _)| crate_name("tar") == k.name) {
-        println!("STARTING GRAPH");
-        transitive.build_graph(krate.0, &tdep, &pb);
-    }
-    for (k, v) in transitive.depends.iter() {
-        println!("{:?}: {}", k, v.len());
-    }
-    for (k, v) in transitive.reverse_depends.iter() {
-        println!("{:?}: {}", k, v.len());
-    }
-    // println!("total {} transitive total {}",
-    //     transitive.depends.iter().fold(0, |sum, (_, deps)| sum + deps.len()),
-    //     transitive.reverse_depends.iter().find(|(k, _)| crate_name("tar") == k.name).unwrap().1.len(),
-    // );
-    // println!("{:#?}", transitive);
+    let pb = setup_progress_bar(139_079);
+    let searching = ["serde:0.8", "serde:1.0"];
+    let table = load_computed(&pb)?
+        .into_par_iter()
+        .inspect(|_| pb.inc(1))
+        .filter(|row| matching_crates(row, &searching))
+        .collect::<Vec<_>>();
+    draw_graph(&searching, table.as_ref());
 
-    //write_json(cargo_tally::JSONFILE, crates)?;
-    // or make a new function
-    //write_json(cargo_tally::COMPFILE, transitive)?;
-    //pb.finish_and_clear();
+    // let crates = test()?;
+    // let pb = setup_progress_bar(crates.len());
+    // pb.set_message("Computing direct and transitive dependencies");
+    // let mut krates = pre_compute_graph(crates, &pb);
+    // krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(cargo_tally::COMPFILE, krates)?;
+    
+    pb.finish_and_clear();
     Ok(())
 }
 
@@ -108,7 +202,7 @@ fn setup_progress_bar(len: usize) -> ProgressBar {
     let pb = ProgressBar::new(len as u64);
     let style = ProgressStyle::default_bar()
         .template("[{wide_bar:.cyan/blue}] {percent}%")
-        .progress_chars("&&.");
+        .progress_chars("=>.");
     pb.set_style(style);
     pb.set_draw_target(ProgressDrawTarget::stderr());
     pb
@@ -196,26 +290,6 @@ fn consolidate_crates(crates: Vec<Crate>, timestamps: Timestamps) -> Vec<Crate> 
     crates
 }
 
-fn compute_transitive(crates: &[Crate], pb: &ProgressBar) -> Vec<TranitiveCrateDeps> {
-    let mut ret = Vec::new();
-    for krate in crates.iter().take(1) {
-        let t_dep = TranitiveCrateDeps::calc_dependencies(crates, krate, pb);
-        // println!("{:?}", t_dep);
-        ret.push(t_dep);
-        
-        //pb.inc(1);
-    }
-
-    // TODO remove
-    for dep in ret.iter() {
-        println!("name: {} count: {}", dep.name, dep.depended_on.len());
-    }
-    if let Some(tokio) = ret.iter().find(|d| d.name == "tokio") {
-        println!("name: {} count: {}", tokio.name, tokio.depended_on.len());
-    }
-    ret
-}
-
 fn write_json<T: serde::Serialize>(file: &str, crates: Vec<T>) -> Result<()> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
 
@@ -267,4 +341,92 @@ fn classify_commit(commit: &Commit) -> CommitType {
     } else {
         CommitType::Manual
     }
+}
+
+
+use gnuplot::{
+    AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph, LineWidth,
+    MajorScale, Placement,
+};
+use chrono::{NaiveDate, NaiveTime};
+use palette;
+use palette::{Hue, Srgb};
+
+fn version_match(ver: &str, row: &TranitiveDep) -> bool {
+    if let Some(ver) = ver.split(':').nth(1) {
+        let pin_req = format!("^{}", ver);
+        let ver_req = VersionReq::parse(&pin_req).expect("version match");
+        ver_req.matches(&row.version)
+    } else {
+        println!("SHOULD NOT SEE");
+        true
+    }
+    
+}
+
+fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
+    println!("TABLE LEN {}", table.len());
+    let mut colors = Vec::new();
+    let mut captions = Vec::new();
+    let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
+    let n = krates.len();
+    for i in 0..n {
+        let linear = primary.shift_hue(360.0 * ((i + 1) as f32) / (n as f32));
+        let srgb = Srgb::from_linear(linear.into()).into_format::<u8>();
+        let hex = format!("#{:02X}{:02X}{:02X}", srgb.red, srgb.green, srgb.blue);
+        colors.push(hex);
+        captions.push(krates[i].replace('_', "\\\\_"));
+    }
+
+    let mut fg = Figure::new();
+    {
+        // Create plot
+        let axes = fg.axes2d();
+        axes.set_title(&format!("testing {} transitive deps", krates[0]), &[]);
+        axes.set_x_range(
+            Fix(float_year(&table[0].timestamp) - 0.3),
+            Fix(float_year(&Utc::now()) + 0.15),
+        );
+        axes.set_y_range(Fix(0.0), Auto);
+        axes.set_x_ticks(Some((Fix(1.0), 12)), &[MajorScale(2.0)], &[]);
+        axes.set_legend(
+            Graph(0.05),
+            Graph(0.9),
+            &[Placement(AlignLeft, AlignTop)],
+            &[],
+        );
+
+        // Create x-axis
+        // let mut x = Vec::new();
+        // for row in table {
+            
+        // }
+
+        // Create series
+        for i in 0..n {
+            let mut y = Vec::new();
+            let mut x = Vec::new();
+            for row in table {
+                println!("{:?}", row);
+                if version_match(krates[i], row) {
+                    x.push(float_year(&row.timestamp));
+                    y.push(row.transitive_count);
+                }
+            }
+            axes.lines(
+                &x,
+                &y,
+                &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
+            );
+        }
+    }
+    fg.show();
+}
+fn float_year(dt: &DateTime) -> f64 {
+    let nd = NaiveDate::from_ymd(2017, 1, 1);
+    let nt = NaiveTime::from_hms_milli(0, 0, 0, 0);
+    let base = DateTime::from_utc(NaiveDateTime::new(nd, nt), Utc);
+    let offset = dt.signed_duration_since(base);
+    let year = offset.num_minutes() as f64 / 525_960.0 + 2017.0;
+    year
 }
