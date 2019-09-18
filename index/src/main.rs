@@ -28,7 +28,9 @@ use crate::error::{Error, Result};
 const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
 
 type DateTime = chrono::DateTime<Utc>;
+
 // 139_079 crates in crates.io
+
 #[derive(StructOpt, Debug)]
 struct Opts {
     /// Path containing crates.io-index checkout
@@ -151,7 +153,6 @@ fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
         .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
 }
 
-// TODO ask about try_main
 fn main() -> Result<()> {
     let opts = Opts::from_args();
     //let repo = Repository::open(&opts.index).expect("open rep");
@@ -160,21 +161,21 @@ fn main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    let pb = setup_progress_bar(139_079);
-    let searching = ["serde:0.8", "serde:1.0"];
-    let table = load_computed(&pb)?
-        .into_par_iter()
-        .inspect(|_| pb.inc(1))
-        .filter(|row| matching_crates(row, &searching))
-        .collect::<Vec<_>>();
-    draw_graph(&searching, table.as_ref());
+    // let pb = setup_progress_bar(139_079);
+    // let searching = ["serde:0.8", "serde:1.0"];
+    // let table = load_computed(&pb)?
+    //     .into_par_iter()
+    //     .inspect(|_| pb.inc(1))
+    //     .filter(|row| matching_crates(row, &searching))
+    //     .collect::<Vec<_>>();
+    // draw_graph(&searching, table.as_ref());
 
-    // let crates = test()?;
-    // let pb = setup_progress_bar(crates.len());
-    // pb.set_message("Computing direct and transitive dependencies");
-    // let mut krates = pre_compute_graph(crates, &pb);
-    // krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    // write_json(cargo_tally::COMPFILE, krates)?;
+    let crates = test()?;
+    let pb = setup_progress_bar(crates.len());
+    pb.set_message("Computing direct and transitive dependencies");
+    let mut krates = pre_compute_graph(crates, &pb);
+    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(cargo_tally::COMPFILE, krates)?;
     
     pb.finish_and_clear();
     Ok(())

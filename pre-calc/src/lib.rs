@@ -143,6 +143,7 @@ impl Universe {
             .enumerate()
             .rev()
             .find(|&(_, metadata)| req.matches(&metadata.num))
+            .map(|(i, k)| { println!("MATCHER {:#?}", k); (i, k) })
             .map(|(i, _)| i as u32)
     }
 
@@ -152,7 +153,13 @@ impl Universe {
 
         for dep in metadata.dependencies.iter() {
             // if the crate is in cratesio at the right version number
+
+            println!("{:?}", key);
+
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
+
+                println!("\nRESOLVED {} -- {:#?}\n", index, dep);
+
                 let name = crate_name(&dep.name);
                 let key = CrateKey { name, index, };
                 // direct deps just match and insert
@@ -170,7 +177,7 @@ impl Universe {
                 .or_insert_with(Set::default)
                 .insert(key);
         }
-        // TODO calculate direct deps too
+        // calculate direct deps too
         for dep in d_resolve.crates.keys() {
             self.dir_depends
                 .entry(dep.name)
@@ -178,7 +185,6 @@ impl Universe {
                 .insert(key);
         }
         
-        // TODO how is this connected
         self.depends
             .insert(key, t_resolve.crates.keys().cloned().collect());
     }
@@ -252,6 +258,7 @@ impl Resolve {
                 .iter()
                 .map(|dep| universe.resolve(&dep.name, &dep.req))
                 .collect::<Vec<_>>();
+                
             self.crates.insert(
                 key,
                 ResolvedCrate {
