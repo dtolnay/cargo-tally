@@ -1,6 +1,7 @@
 **/*.rs.bk
 /graphs/
-/tally.json*
-/computed.json*
-/mini.json*
+tally.json*
+computed.json*
+mini.json*
+mini2.json*
 target/

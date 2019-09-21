@@ -62,6 +62,7 @@ fn try_main() -> Result<()> {
 
     // let pb = setup_progress_bar(139_079);
     // let searching = ["serde:0.8", "serde:1.0"];
+    // // load_computed sorts array
     // let table = load_computed(&pb)?
     //     .into_par_iter()
     //     .inspect(|_| pb.inc(1))
@@ -69,11 +70,16 @@ fn try_main() -> Result<()> {
     //     .collect::<Vec<_>>();
     // draw_graph(&searching, table.as_ref());
 
-    let crates = test()?;
+    let mut crates = test()?;
+
+    crates.par_sort_by(|a, b| a.published.cmp(&b.published));
+
     let pb = setup_progress_bar(crates.len());
     pb.set_message("Computing direct and transitive dependencies");
     let mut krates = pre_compute_graph(crates, &pb);
+
     krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
     write_json("./minicomp.json.gz", krates)?;
     
     pb.finish_and_clear();
@@ -84,7 +90,7 @@ fn test() -> Result<Vec<Crate>> {
     let pb = setup_progress_bar(100_000);
     pb.set_message("Loading Crate struct from all tall.json.gz");
 
-    let json_path = Path::new("../mini.json.gz");
+    let json_path = Path::new("../mini2.json.gz");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
@@ -111,7 +117,7 @@ fn test() -> Result<Vec<Crate>> {
     //     let krate = line?;
     //     ret.push(krate);
     // }
-    krates.par_sort_by(|a, b| a.published.cmp(&b.published));
+    
     pb.finish_and_clear();
     Ok(krates)
 }
