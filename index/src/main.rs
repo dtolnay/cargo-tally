@@ -45,17 +45,56 @@ struct Matcher<'a> {
     nodes: Vec<u32>,
 }
 
+fn main() {
+    if let Err(err) = try_main() {
+        let _ = writeln!(io::stderr(), "Error: {}", err);
+        std::process::exit(1);
+    }
+}
+
+fn try_main() -> Result<()> {
+    // let opts = Opts::from_args();
+    //let repo = Repository::open(&opts.index).expect("open rep");
+    // let crates = parse_index(&opts.index).expect("parse idx");
+    // let pb = setup_progress_bar(crates.len());
+    // let timestamps = compute_timestamps(repo, &pb)?;
+    // let crates = consolidate_crates(crates, timestamps);
+
+    // let pb = setup_progress_bar(139_079);
+    // let searching = ["serde:0.8", "serde:1.0"];
+    // let table = load_computed(&pb)?
+    //     .into_par_iter()
+    //     .inspect(|_| pb.inc(1))
+    //     .filter(|row| matching_crates(row, &searching))
+    //     .collect::<Vec<_>>();
+    // draw_graph(&searching, table.as_ref());
+
+    let crates = test()?;
+    let pb = setup_progress_bar(crates.len());
+    pb.set_message("Computing direct and transitive dependencies");
+    let mut krates = pre_compute_graph(crates, &pb);
+    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json("./minicomp.json.gz", krates)?;
+    
+    pb.finish_and_clear();
+    Ok(())
+}
+
 fn test() -> Result<Vec<Crate>> {
     let pb = setup_progress_bar(100_000);
     pb.set_message("Loading Crate struct from all tall.json.gz");
 
-    let json_path = Path::new("../tally.json");
+    let json_path = Path::new("../mini.json.gz");
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
 
-    let json = std::fs::read_to_string(json_path)?;
-    let krates = json
+    let file = fs::File::open(json_path)?;
+    let mut decoder = GzDecoder::new(file);
+    let mut decompressed = String::new();
+    decoder.read_to_string(&mut decompressed)?; 
+
+    let mut krates = decompressed
         .par_lines()
         .inspect(|_| pb.inc(1))
         .map(|line| {
@@ -72,6 +111,7 @@ fn test() -> Result<Vec<Crate>> {
     //     let krate = line?;
     //     ret.push(krate);
     // }
+    krates.par_sort_by(|a, b| a.published.cmp(&b.published));
     pb.finish_and_clear();
     Ok(krates)
 }
@@ -151,34 +191,6 @@ fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
     search.iter()
         .map(|&s| create_matchers(s).expect("failed to parse"))
         .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
-}
-
-fn main() -> Result<()> {
-    let opts = Opts::from_args();
-    //let repo = Repository::open(&opts.index).expect("open rep");
-    // let crates = parse_index(&opts.index).expect("parse idx");
-    // let pb = setup_progress_bar(crates.len());
-    // let timestamps = compute_timestamps(repo, &pb)?;
-    // let crates = consolidate_crates(crates, timestamps);
-
-    // let pb = setup_progress_bar(139_079);
-    // let searching = ["serde:0.8", "serde:1.0"];
-    // let table = load_computed(&pb)?
-    //     .into_par_iter()
-    //     .inspect(|_| pb.inc(1))
-    //     .filter(|row| matching_crates(row, &searching))
-    //     .collect::<Vec<_>>();
-    // draw_graph(&searching, table.as_ref());
-
-    let crates = test()?;
-    let pb = setup_progress_bar(crates.len());
-    pb.set_message("Computing direct and transitive dependencies");
-    let mut krates = pre_compute_graph(crates, &pb);
-    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(cargo_tally::COMPFILE, krates)?;
-    
-    pb.finish_and_clear();
-    Ok(())
 }
 
 fn parse_index(index: &Path) -> Result<Vec<Crate>> {
@@ -359,7 +371,7 @@ fn version_match(ver: &str, row: &TranitiveDep) -> bool {
         let ver_req = VersionReq::parse(&pin_req).expect("version match");
         ver_req.matches(&row.version)
     } else {
-        println!("SHOULD NOT SEE");
+        println!("SHOULD NOT SEE FOR NOW");
         true
     }
     
@@ -430,4 +442,13 @@ fn float_year(dt: &DateTime) -> f64 {
     let offset = dt.signed_duration_since(base);
     let year = offset.num_minutes() as f64 / 525_960.0 + 2017.0;
     year
+}
+
+mod test {
+    use super::*;
+    #[test]
+    fn run_for_output() {
+        env_logger::init();
+        super::try_main().expect("run for output failed at try_main");
+    }
 }

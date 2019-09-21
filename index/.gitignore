@@ -1,4 +1,3 @@
-/tally.json
-/tally.json.gz
-/computed.json
-/computed.json.gz
+/tally.json*
+/computed.json*
+/minicomp.json*
