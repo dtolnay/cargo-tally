@@ -86,12 +86,9 @@ impl Universe {
             for (i, metadata) in prev.iter().enumerate() {
                 // if event lies within 
                 if compatible_req(&metadata.num).matches(&event.num) {
-                    // if event.name == "tar" { error!("{}--{}", metadata.num, event.num) };
                     let key = CrateKey::new(event.name, i as u32);
-
                     for node in self.reverse_depends[&key].clone() {
                         for dep in &self.depends[&node] {
-                            // if event.name == "tar" { info!("KEY={:?} NODE={:?} DEP={:?}", prev_key, node, dep) };
                             self.reverse_depends.get_mut(dep).unwrap().remove(&node);
                         }
                         redo.insert(node);
@@ -130,9 +127,7 @@ impl Universe {
 
         for outdated in redo {
             let metadata = self.crates[&outdated.name][outdated.index as usize].clone();
-
-            // if event.name == "tar" { warn!("re-resolving {} {}", outdated.name, metadata.num) };
-
+            warn!("re-resolving {} {}", outdated.name, metadata.num);
             self.resolve_and_add_to_graph(outdated, &metadata);
         }        
     }
@@ -152,14 +147,8 @@ impl Universe {
         let mut t_resolve = Resolve { crates: Map::default(), };
 
         for dep in metadata.dependencies.iter() {
-
-            // println!("DEP {:?}", key);
-
             // if the crate is in Universe.crates at the right version number
             if let Some(index) = self.resolve(&dep.name, &dep.req) {
-
-                // println!("RESOLVED {} {}", dep.name, index);
-
                 let name = crate_name(&dep.name);
                 let key = CrateKey { name, index, };
                 // direct deps just match and insert
@@ -168,7 +157,6 @@ impl Universe {
                 t_resolve.add_crate(self, key, dep.default_features, &dep.features);
             }
         }
-
         // add `CrateKey`s of resolved crates, walks the graph and checks features 
         // transitive deps
         for dep in t_resolve.crates.keys() {
@@ -189,88 +177,6 @@ impl Universe {
             .insert(key, t_resolve.crates.keys().cloned().collect());
     }
 
-    // fn resolve_time_check(&self, name: &str, req: &VersionReq, time: DateTime) -> Option<u32> {
-    //     self.crates
-    //         .get(&crate_name(name))?
-    //         .iter()
-    //         .enumerate()
-    //         .rev()
-    //         .find(|&(_, metadata)| req.matches(&metadata.num) && metadata.created_at > time)
-    //         .map(|(i, _)| i as u32)
-    // }
-
-    // fn resolve_add_graph_time_check(&mut self, key: CrateKey, metadata: &Metadata, time: DateTime) {
-    //     let mut d_resolve = Resolve { crates: Map::default(), };
-    //     let mut t_resolve = Resolve { crates: Map::default(), };
-
-    //     for dep in metadata.dependencies.iter() {
-
-    //         println!("DEP {:?}", key);
-
-    //         // if the crate is in crates.io at the right version number
-    //         if let Some(index) = self.resolve_time_check(&dep.name, &dep.req, time) {
-
-    //             println!("RESOLVED {} {}", dep.name, index);
-
-    //             let name = crate_name(&dep.name);
-    //             let key = CrateKey { name, index, };
-    //             // direct deps just match and insert
-    //             d_resolve.crates.insert(key, ResolvedCrate::no_resolve());
-    //             // transitive dependencies RECURSIVELY walk deps of deps ect.
-    //             t_resolve.add_crate(self, key, dep.default_features, &dep.features);
-    //         }
-    //     }
-
-    //     // add `CrateKey`s of resolved crates, walks the graph and checks features 
-    //     // transitive deps
-    //     for dep in t_resolve.crates.keys() {
-    //         self.reverse_depends
-    //             .entry(*dep)
-    //             .or_insert_with(Set::default)
-    //             .insert(key);
-    //     }
-    //     // calculate direct deps too
-    //     for dep in d_resolve.crates.keys() {
-    //         self.dir_depends
-    //             .entry(dep.name)
-    //             .or_insert_with(Set::default)
-    //             .insert(key);
-    //     }
-        
-    //     self.depends
-    //         .insert(key, t_resolve.crates.keys().cloned().collect());
-    // }
-
-    fn extend_timeline(&mut self, krate: &CrateName, time: &DateTime) {
-        let mut resolve = Resolve { crates: Map::default(), };
-
-        let index = self.crates.get(krate).unwrap().len();
-        let prev_key = CrateKey::new(*krate, (index - 1) as u32);
-        let key = CrateKey::new(*krate, index as u32);
-
-        let prev_meta = self.crates[&prev_key.name][prev_key.index as usize].clone();
-
-        // find all rev deps for krate, iter each meta cmp `time` DateTime
-        // if == then add new key and meta event for that crate
-        
-        if key.name == "tar" { warn!("{:?}", prev_meta) };
-        if key.name == "tar" { warn!("{:?} {}", krate, time) };
-        // warn!("{:?} {}", krate, time);
-        for dep in prev_meta.dependencies.iter() {
-            // error!("{:?}", rev_dep);
-            if key.name == "tar" { error!("{:?}", dep) };
-            //self.resolve_add_graph_time_check(key, &prev_meta, *time);
-        }
-        // info!("\n");
-        if key.name == "tar" { info!("\n") };
-        for dep in resolve.crates.keys() {
-            self.reverse_depends
-                .entry(*dep)
-                .or_insert_with(Set::default)
-                .insert(key);
-        }
-    }
-
     fn compute_counts(
         &self,
         timestamp: DateTime,
@@ -288,8 +194,12 @@ impl Universe {
             tran_counts: {
                     set.clear();
                     let key = CrateKey::new(name, index);
-                    set.extend(self.reverse_depends[&key].iter().map(|key| key.name));
-                    set.len()
+                    if let Some(deps) = self.reverse_depends.get(&key) {
+                        set.extend(deps.iter().map(|key| key.name));
+                        set.len()
+                    } else {
+                        0
+                    }
                 },
             dir_counts: {
                     set.clear();
@@ -332,9 +242,7 @@ impl Resolve {
         features: &[String],
     ) {
         let metadata = &universe.crates[&key.name][key.index as usize];
-
-        if key.name == "tar" { debug!("adding crate {} {}", key.name, metadata.num) };
-
+        debug!("adding crate {} {}", key.name, metadata.num);
         // if not in Resolve.crates iter deps to find index of meta for each
         if !self.crates.contains_key(&key) {
             // array of indexs for universe.crates
@@ -353,10 +261,7 @@ impl Resolve {
             );
             for (dep, index) in metadata.dependencies.iter().zip(resolved) {
                 if !dep.optional && dep.kind != DependencyKind::Dev && index.is_some() {
-                    let key2 = CrateKey::new(crate_name(&*dep.name), index.unwrap());
-
-                    // if key.name == "tar" { warn!("KEY {:?} DEP {:?}", key, dep) };
-                    
+                    let key2 = CrateKey::new(crate_name(&*dep.name), index.unwrap());                    
                     self.add_crate(universe, key2, dep.default_features, &dep.features);
                 }
             }
@@ -476,7 +381,10 @@ fn compatible_req(version: &Version) -> VersionReq {
 
 pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
     let mut universe = Universe::new();
+    // for each version "event" this is the straight through vec
     let mut table = Vec::new();
+    // for any changes that happen over time not at a version release event
+    let mut extend = Set::default();
     for krate in crates {
         pb.inc(1);
 
@@ -506,85 +414,75 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             direct_count: row.dir_counts,
             total: row.total,
         });
-
-        let universe_crates_clone = universe.crates.clone();
+        
         // create points in time other than version releases 
-        for (idx, (prev_krate, metas)) in universe_crates_clone.iter().enumerate() {
+        for (idx, (prev_krate, metas)) in universe.crates.iter().enumerate() {
             let index = idx as u32;
-            if let Some(recent_meta) = metas.last() {
+            // for each version 
+            for recent_meta in metas {
                 let key = CrateKey::new(*prev_krate, index);
 
-                let ev = Event {
-                    name,
-                    num: recent_meta.num.clone(),
-                    timestamp,
-                    features: recent_meta.features.clone(),
-                    dependencies: recent_meta.dependencies.clone(),
-                };
-                universe.process_event(ev);
-                let row = universe.compute_counts(timestamp, name, recent_meta.num.clone(), metas.to_vec(), index);
+                let row_update = universe.compute_counts(timestamp, *prev_krate, recent_meta.num.clone(), metas.to_vec(), index);
 
-                // TODO compare and if diff add TransitiveDep to table
-                
-                for r in table.iter().rev() {
-                    if (r.name == "tar" && row.name == "tar")
-                        && ((r.transitive_count != row.tran_counts) || (r.direct_count != row.dir_counts))
-                    {
-                        error!("{:?}{}: {} {:?}{}: {}", r.name, r.version, r.transitive_count, row.name, row.num, row.tran_counts);
-                    }
+                if let Some(r) = table.iter().find(|r| {
+                    (r.transitive_count != row_update.tran_counts) // && row_update.tran_counts != 0
+                      || (r.direct_count != row_update.dir_counts)
+                      && (crate_name(&r.name) == row_update.name)
+                      && r.version == row_update.num
+                }) {
+                    let mut td = TranitiveDep {
+                            name: row_update.name.to_string(),
+                            timestamp,
+                            version: row_update.num.clone(),
+                            transitive_count: row_update.tran_counts,
+                            direct_count: row_update.dir_counts,
+                            total: row_update.total,
+                        };
+                        // TransitiveDep compares all but the timestamp
+                        if !extend.contains(&td) {
+                            // TODO this may not be needed when running on the whole crates.io index
+                            if td.transitive_count == 0 {
+                                td.transitive_count = r.transitive_count;
+                            }
+                            if td.direct_count == 0 {
+                                td.direct_count = r.direct_count;
+                            }
+                            warn!("ADDING KRATE {:#?}", td);
+                            extend.insert(td);
+                        }
                 }
-                // if let Some(r) = table.iter().rev().find(|r| {
-                //     (r.name == "tar" && row.name == "tar")
-                //     && (r.transitive_count != row.tran_counts)
-                // }) {
-                //     error!("{:?}{}: {} {:?}{}: {}", r.name, r.version, r.transitive_count, row.name, row.num, row.tran_counts);
+                // for r in table.iter().rev() {
+                //     // TODO make this not so ugly
+                //     if (r.transitive_count != row_update.tran_counts) // && row_update.tran_counts != 0
+                //       || (r.direct_count != row_update.dir_counts)
+                //       && (crate_name(&r.name) == row_update.name)
+                //       && r.version == row_update.num
+                //     {
+                //         debug!("[{}]{:?}{}: {} {:?}{}: {}", timestamp, r.name, r.version, r.transitive_count, row_update.name, row_update.num, row_update.tran_counts);
+                //         debug!("[{}]{:?}{}: {} {:?}{}: {}", timestamp, r.name, r.version, r.direct_count, row_update.name, row_update.num, row_update.dir_counts);                        
+                //         let mut td = TranitiveDep {
+                //             name: row_update.name.to_string(),
+                //             timestamp,
+                //             version: row_update.num.clone(),
+                //             transitive_count: row_update.tran_counts,
+                //             direct_count: row_update.dir_counts,
+                //             total: row_update.total,
+                //         };
+                //         // TransitiveDep compares all but the timestamp
+                //         if !extend.contains(&td) {
+                //             // TODO this may not be needed when running on the whole crates.io index
+                //             if td.transitive_count == 0 {
+                //                 td.transitive_count = r.transitive_count;
+                //             }
+                //             warn!("ADDING KRATE {:#?}", td);
+                //             extend.insert(td);
+                //         }
+                //     }
                 // }
             }
         }
     }
-
-    // use std::collections::BTreeSet;
-    // // TODO compute every changed depended on crate at every timestamp
-    // let mut time_set: BTreeSet<_> = universe.crates
-    //     .iter()
-    //     .flat_map(|(_, meta)| meta.iter().map(|m| m.created_at))
-    //     .collect::<Set<_>>()
-    //     .iter()
-    //     .cloned()
-    //     .collect();
-
-    // let mut time_vec = time_set
-    //     .iter()
-    //     .cloned()
-    //     .collect::<Vec<_>>();
-
-    // time_vec.sort();
-    // time_vec.dedup();
-    // // TODO fix needing to do this to avoid immut/mut borrow
-    // let krates: Vec<(CrateName, Vec<Metadata>)> = universe.crates
-    //     .iter()
-    //     .map(|(n, metas)| (*n, metas.clone()))
-    //     .collect();
-
-    // let last_ev = time_vec.last().unwrap();
-    // for (krate, metas) in krates {
-    //     if let Some(last_pub) = metas.last() {
-    //         if krate == "tar" { warn!("{:?}", last_pub.created_at) };
-    //         if last_pub.created_at <= *last_ev {
-    //             let idx = time_set.iter().position(|&t| t == last_pub.created_at).unwrap();
-    //             let (before, time_to_pres) = time_vec.split_at(idx);
-
-    //             if krate == "tar" {
-    //                 info!("TIME LEN [{}] ({}) {}", time_vec.len(), before.len(), time_to_pres.len())
-    //             };
-
-    //             for ev in time_to_pres {
-    //                 universe.extend_timeline(&krate, &ev);
-    //             }
-    //         }
-    //     }
-    // }
-
+    table.extend(extend);
     table
 }
 

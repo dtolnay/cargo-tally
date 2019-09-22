@@ -32,7 +32,7 @@ pub struct Dependency {
     pub kind: DependencyKind,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct TranitiveDep {
     pub name: String,
     pub timestamp: DateTime,
@@ -54,6 +54,23 @@ pub enum DependencyKind {
 pub enum Feature {
     Current(String),
     Dependency(String, String),
+}
+
+impl PartialEq for TranitiveDep {
+    fn eq(&self, other: &Self) -> bool {
+        (self.name == other.name) && (self.direct_count == other.direct_count)
+        && (self.transitive_count == other.transitive_count)
+        && (self.version == other.version)
+    }
+}
+// TODO THIS IS PROBABLY BAD
+impl std::hash::Hash for TranitiveDep {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.direct_count.hash(state);
+        self.transitive_count.hash(state);
+        self.version.hash(state);
+    }
 }
 
 impl Default for DependencyKind {

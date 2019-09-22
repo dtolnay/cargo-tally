@@ -53,6 +53,9 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
+    let f_in = "../tally.json.gz";
+    let f_out = "./computed.json.gz";
+
     // let opts = Opts::from_args();
     //let repo = Repository::open(&opts.index).expect("open rep");
     // let crates = parse_index(&opts.index).expect("parse idx");
@@ -61,36 +64,35 @@ fn try_main() -> Result<()> {
     // let crates = consolidate_crates(crates, timestamps);
 
     // let pb = setup_progress_bar(139_079);
-    // let searching = ["serde:0.8", "serde:1.0"];
+    // let searching = ["libc"];
     // // load_computed sorts array
-    // let table = load_computed(&pb)?
+    // let table = load_computed(&pb, f_in)?
     //     .into_par_iter()
     //     .inspect(|_| pb.inc(1))
     //     .filter(|row| matching_crates(row, &searching))
     //     .collect::<Vec<_>>();
     // draw_graph(&searching, table.as_ref());
 
-    let mut crates = test()?;
-
+    let mut crates = test(f_in)?;
+    // TODO this might not be needed
     crates.par_sort_by(|a, b| a.published.cmp(&b.published));
-
     let pb = setup_progress_bar(crates.len());
     pb.set_message("Computing direct and transitive dependencies");
     let mut krates = pre_compute_graph(crates, &pb);
-
+    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // from adding items at every timestamp
     krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-
-    write_json("./minicomp.json.gz", krates)?;
+    write_json(f_out, krates)?;
     
     pb.finish_and_clear();
     Ok(())
 }
 
-fn test() -> Result<Vec<Crate>> {
-    let pb = setup_progress_bar(100_000);
-    pb.set_message("Loading Crate struct from all tall.json.gz");
-
-    let json_path = Path::new("../mini2.json.gz");
+fn test(file: &str) -> Result<Vec<Crate>> {
+    let pb = setup_progress_bar(139_080);
+    pb.inc(1);
+    
+    let json_path = Path::new(file);
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
@@ -124,8 +126,8 @@ fn test() -> Result<Vec<Crate>> {
 
 /// Returns time sorted `Vec<TransitiveDep>`  
 // TODO decomp and deserialization is SLOW make obj smaller!!!
-fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>> {
-    let json_path = Path::new("./computed.json.gz");
+fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
+    let json_path = Path::new(file);
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
