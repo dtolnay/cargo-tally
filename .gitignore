@@ -3,4 +3,5 @@
 tally.json*
 computed.json*
 *.json.gz
+*.json
 target/
