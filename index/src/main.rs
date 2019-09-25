@@ -64,7 +64,7 @@ fn try_main() -> Result<()> {
     // let crates = consolidate_crates(crates, timestamps);
 
     let pb = setup_progress_bar(3_168_028);
-    let searching = ["libc"];
+    let searching = ["tar"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
         .into_par_iter()
