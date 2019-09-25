@@ -54,7 +54,7 @@ fn main() {
 
 fn try_main() -> Result<()> {
     let f_in = "../tally.json.gz";
-    let f_out = "./comped.json.gz";
+    let f_out = "./not.json.gz";
 
     // let opts = Opts::from_args();
     //let repo = Repository::open(&opts.index).expect("open rep");
@@ -63,7 +63,7 @@ fn try_main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    let pb = setup_progress_bar(139_079);
+    let pb = setup_progress_bar(3_168_028);
     let searching = ["libc"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
@@ -71,6 +71,9 @@ fn try_main() -> Result<()> {
         .inspect(|_| pb.inc(1))
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
+
+    println!("FINISHED FILTER");
+
     draw_graph(&searching, table.as_ref());
 
     // let mut crates = test(f_in)?;

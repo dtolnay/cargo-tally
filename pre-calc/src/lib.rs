@@ -55,7 +55,7 @@ pub struct Row {
     pub timestamp: DateTime,
     pub name: CrateName,
     pub num: Version,
-    pub deps: Vec<Metadata>,
+    // pub deps: Vec<Metadata>,
     // TODO what to do about Vec<usize> remove for now just usize
     pub tran_counts: usize,
     pub dir_counts: usize,
@@ -190,7 +190,6 @@ impl Universe {
         timestamp: DateTime,
         name: CrateName,
         num: Version,
-        deps: Vec<Metadata>,
         index: u32,
     ) -> Row {
         let mut set = Set::default();
@@ -198,7 +197,6 @@ impl Universe {
             timestamp,
             name,
             num,
-            deps,
             tran_counts: {
                     set.clear();
                     let key = CrateKey::new(name, index);
@@ -392,7 +390,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
     // for each version "event" this is the straight through vec
     let mut table = Vec::new();
     // for any changes that happen over time not at a version release event
-    let mut extend = Vec::new();
+    let mut extend = Set::default();
     for krate in crates {
         pb.inc(1);
 
@@ -407,12 +405,11 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             features: krate.features,
             dependencies: krate.dependencies,
         };
+        // returns CrateKeys of all the updated crates
+        let updated = universe.process_event(ev);
 
-        let redo = universe.process_event(ev);
-
-        let deps = universe.crates[&name].clone();
         let idx = universe.crates[&name].len() as u32 - 1;
-        let row = universe.compute_counts(timestamp, name, ver, deps, idx);
+        let row = universe.compute_counts(timestamp, name, ver, idx);
 
         table.push(TranitiveDep {
             name: krate.name,
@@ -423,18 +420,17 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             total: row.total,
         });
 
-        for redo_crate in redo.iter() {
+        for redo_crate in updated.iter() {
 
             if redo_crate.name == "tar" { info!("CURRENT {} REDO {}", name, redo_crate.name) };
 
             let metas = &universe.crates[&redo_crate.name];
-            let meta = metas[redo_crate.index as usize].clone();
+            let meta = &metas[redo_crate.index as usize];
 
             let row_update = universe.compute_counts(
                 timestamp,
                 redo_crate.name,
                 meta.num.clone(),
-                metas.to_vec(),
                 redo_crate.index
             );
 
@@ -447,22 +443,8 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 total: row_update.total,
             };
 
-            if let Some(last) = table.iter().find(|r| {
-                r.name == td.name && r.version == td.version
-            }) {
-                info!(
-                    "{:?} {:?} {:?} {} last {} {}",
-                    timestamp,
-                    td.direct_count,
-                    td.transitive_count,
-                    redo_crate.name,
-                    last.direct_count,
-                    last.transitive_count,
-                );
-            }
-            
             // TransitiveDep compares all but the timestamp
-            extend.push(td);
+            extend.insert(td);
             //println!("{:?}", extend);
         }
         
