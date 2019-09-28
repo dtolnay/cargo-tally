@@ -118,12 +118,14 @@ impl Universe {
             dependencies,
         };
 
+        // maybe should of used a FnvHashSet here??
         let mut to_update = Vec::new();
 
         // index is which dependency we mean in terms of Metadata
         let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
         let key = CrateKey::new(event.name, index as u32);
 
+        // the updated crates dep's and trans dep's
         let trans_res = self.resolve_and_add_to_graph(key, &metadata);
         to_update.extend(trans_res.crates.keys());
 
@@ -133,6 +135,8 @@ impl Universe {
         for outdated in redo.iter() {
             let metadata = self.crates[&outdated.name][outdated.index as usize].clone();
             warn!("re-resolving {} {}", outdated.name, metadata.num);
+
+            // do I need to also recheck the redo crates??
             let re_res = self.resolve_and_add_to_graph(*outdated, &metadata);
             to_update.extend(re_res.crates.keys());
         }
