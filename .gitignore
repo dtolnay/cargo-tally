@@ -2,6 +2,6 @@
 /graphs/
 tally.json*
 computed.json*
-*.json.gz
-*.json
+mini.json*
+not.json*
 target/
