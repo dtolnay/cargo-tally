@@ -1,5 +1,4 @@
 /tally.json*
 /computed.json*
 /minicomp.json*
-/*.json.gz
-/*.json
+/not.json*
