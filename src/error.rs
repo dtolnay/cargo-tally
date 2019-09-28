@@ -1,6 +1,6 @@
 use semver::ReqParseError;
 
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Debug};
 use std::io;
 
 pub enum Error {
@@ -32,6 +32,12 @@ impl Display for Error {
             Regex(err) => write!(f, "{}", err),
             NothingFound => write!(f, "nothing found for this crate"),
         }
+    }
+}
+
+impl Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

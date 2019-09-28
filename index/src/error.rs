@@ -1,12 +1,17 @@
-use std::fmt::{self, Display};
+use semver::ReqParseError;
+
+use std::fmt::{self, Display, Debug};
 use std::io;
 use std::path::PathBuf;
 
+
 pub enum Error {
+    ParseSeries(String, ReqParseError),
     Git2(git2::Error),
     JsonLine(PathBuf, serde_json::Error),
     Json(serde_json::Error),
     Io(io::Error),
+    
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -20,7 +25,13 @@ impl Display for Error {
             JsonLine(path, e) => write!(f, "{}: {}", path.display(), e),
             Json(e) => write!(f, "{}", e),
             Io(e) => write!(f, "{}", e),
+            ParseSeries(s, err) => write!(f, "failed to parse series {}: {}", s, err),
         }
+    }
+}
+impl Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

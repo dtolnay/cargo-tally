@@ -1,2 +1,8 @@
-/tally.json
-/tally.json.gz
+**/*.rs.bk
+/graphs/
+tally.json*
+computed.json*
+mini.json*
+comped.json*
+not.json
+target/

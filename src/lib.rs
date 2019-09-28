@@ -6,6 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Display};
 
 pub const JSONFILE: &str = "tally.json.gz";
+pub const COMPFILE: &str = "computed.json.gz";
 
 pub type DateTime = chrono::DateTime<Utc>;
 
@@ -29,6 +30,16 @@ pub struct Dependency {
     pub default_features: bool,
     #[serde(default, deserialize_with = "null_as_default")]
     pub kind: DependencyKind,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct TranitiveDep {
+    pub name: String,
+    pub timestamp: DateTime,
+    pub version: Version,
+    pub transitive_count: usize,
+    pub direct_count: usize,
+    pub total: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -81,7 +92,7 @@ impl Display for Feature {
 }
 
 impl Serialize for Feature {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {

@@ -1,0 +1,26 @@
+[package]
+name = "pre-calc"
+version = "0.1.0"
+authors = ["Devin R <devin.ragotzy@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cargo-tally = {path = "../"}
+rayon = "1.2.0"
+
+chrono = { version = "0.4", features = ["serde"] }
+flate2 = "1.0"
+fnv = "1.0"
+gnuplot = "0.0.31"
+indicatif = "0.11"
+lazy_static = "1.0"
+log = "0.4"
+env_logger = "0.6"
+palette = "0.4"
+semver = { version = "0.9", features = ["serde"] }
+semver-parser = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+string-interner = "0.7"
