@@ -7,7 +7,6 @@ use gnuplot::{
 use indicatif::ProgressBar;
 use palette;
 use palette::{Hue, Srgb};
-use rayon::prelude::*;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 
@@ -54,7 +53,7 @@ fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>, io::Error> {
     decoder.read_to_string(&mut decompressed)?; 
 
     let mut krates = decompressed
-        .par_lines()
+        .lines()
         .inspect(|_| pb.inc(1))
         .map(|line| {
             serde_json::from_str(line)
@@ -72,7 +71,7 @@ fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>, io::Error> {
     // }
     pb.finish_and_clear();
 
-    krates.par_sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    krates.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     Ok(krates)
 }
 
@@ -179,7 +178,7 @@ pub(crate) fn tally2(args: &Args) -> error::Result<()> {
     pb.set_message("FIX ME");
 
     let table = load_computed(&pb)?
-        .into_par_iter()
+        .into_iter()
         .filter(|k| matching_crates(k, &args.crates))
         .collect::<Vec<_>>();
     

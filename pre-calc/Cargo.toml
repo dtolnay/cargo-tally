@@ -8,8 +8,6 @@ edition = "2018"
 
 [dependencies]
 cargo-tally = {path = "../"}
-rayon = "1.2.0"
-
 chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1.0"
 fnv = "1.0"

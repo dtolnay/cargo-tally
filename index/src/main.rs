@@ -54,7 +54,7 @@ fn main() {
 
 fn try_main() -> Result<()> {
     let f_in = "../tally.json.gz";
-    let f_out = "./not.json.gz";
+    let f_out = "./computed.json.gz";
 
     // let opts = Opts::from_args();
     //let repo = Repository::open(&opts.index).expect("open rep");
@@ -63,29 +63,27 @@ fn try_main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    let pb = setup_progress_bar(3_168_028);
-    let searching = ["tar"];
-    // load_computed sorts array
-    let table = load_computed(&pb, f_out)?
-        .into_par_iter()
-        .inspect(|_| pb.inc(1))
-        .filter(|row| matching_crates(row, &searching))
-        .collect::<Vec<_>>();
+    // let pb = setup_progress_bar(3_168_028);
+    // let searching = ["tar"];
+    // // load_computed sorts array
+    // let table = load_computed(&pb, f_out)?
+    //     .into_par_iter()
+    //     .inspect(|_| pb.inc(1))
+    //     .filter(|row| matching_crates(row, &searching))
+    //     .collect::<Vec<_>>();
+    // println!("FINISHED FILTER");
+    // draw_graph(&searching, table.as_ref());
 
-    println!("FINISHED FILTER");
-
-    draw_graph(&searching, table.as_ref());
-
-    // let mut crates = test(f_in)?;
-    // // TODO this might not be needed
-    // crates.par_sort_by(|a, b| a.published.cmp(&b.published));
-    // let pb = setup_progress_bar(crates.len());
-    // pb.set_message("Computing direct and transitive dependencies");
-    // let mut krates = pre_compute_graph(crates, &pb);
-    // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
-    // // from adding items at every timestamp?
-    // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    // write_json(f_out, krates)?;
+    let mut crates = test(f_in)?;
+    // TODO this might not be needed
+    crates.par_sort_by(|a, b| a.published.cmp(&b.published));
+    let pb = setup_progress_bar(crates.len());
+    pb.set_message("Computing direct and transitive dependencies");
+    let mut krates = pre_compute_graph(crates, &pb);
+    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // from adding items at every timestamp?
+    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(f_out, krates)?;
     
     pb.finish_and_clear();
     Ok(())

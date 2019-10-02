@@ -4,7 +4,7 @@ use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TranitiveDep};
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::ProgressBar;
 use log::{debug, info, warn, error};
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use semver::{Version, VersionReq};
 use semver_parser::range::{self, Op::Compatible, Predicate};
@@ -125,7 +125,6 @@ impl Universe {
         let index = self.crates.entry(event.name).or_insert_with(Vec::new).len();
         let key = CrateKey::new(event.name, index as u32);
 
-        // the updated crates dep's and trans dep's
         let trans_res = self.resolve_and_add_to_graph(key, &metadata);
         to_update.extend(trans_res.crates.keys());
 
@@ -186,6 +185,7 @@ impl Universe {
         
         self.depends
             .insert(key, t_resolve.crates.keys().cloned().collect());
+            
         t_resolve
     }
 
@@ -410,8 +410,12 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             dependencies: krate.dependencies,
         };
         // returns CrateKeys of all the updated crates
-        let updated = universe.process_event(ev);
-
+        let all_updated = universe.process_event(ev);
+        let updated = all_updated
+            .iter()
+            .filter(|k| universe.crates.contains_key(&k.name))
+            .collect::<Set<_>>();
+            
         let idx = universe.crates[&name].len() as u32 - 1;
         let row = universe.compute_counts(timestamp, name, ver, idx);
 
