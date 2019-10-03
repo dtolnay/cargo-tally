@@ -75,8 +75,6 @@ fn try_main() -> Result<()> {
     draw_graph(&searching, table.as_ref());
 
     // let mut crates = test(f_in)?;
-    // // TODO this might not be needed
-    // crates.par_sort_by(|a, b| a.published.cmp(&b.published));
     // let pb = setup_progress_bar(crates.len());
     // pb.set_message("Computing direct and transitive dependencies");
     // let mut krates = pre_compute_graph(crates, &pb);
@@ -103,7 +101,7 @@ fn test(file: &str) -> Result<Vec<Crate>> {
     let mut decompressed = String::new();
     decoder.read_to_string(&mut decompressed)?; 
 
-    let mut krates = decompressed
+    let krates = decompressed
         .par_lines()
         .inspect(|_| pb.inc(1))
         .map(|line| {
@@ -161,8 +159,6 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
         .collect::<Vec<_>>();
     // windows filter skips first item
     filtered.insert(0,krates[0].clone());
-    //TODO do this in one place and make sure its not scrambled when json serialized
-    filtered.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
     pb.finish_and_clear();
     Ok(filtered)
 }
