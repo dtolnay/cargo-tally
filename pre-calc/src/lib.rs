@@ -56,7 +56,6 @@ pub struct Row {
     pub name: CrateName,
     pub num: Version,
     // pub deps: Vec<Metadata>,
-    // TODO what to do about Vec<usize> remove for now just usize
     pub tran_counts: usize,
     pub dir_counts: usize,
     pub total: usize,
@@ -411,6 +410,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         };
         // returns CrateKeys of all the updated crates
         let all_updated = universe.process_event(ev);
+
         let updated = all_updated
             .iter()
             .filter(|k| universe.crates.contains_key(&k.name))
@@ -455,44 +455,6 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             extend.insert(td);
             //println!("{:?}", extend);
         }
-        
-        // // create points in time other than version releases 
-        // let index = idx as u32;
-        //     // for each version 
-        // for (i, recent_meta) in universe.crates[&name].iter().enumerate() {
-
-        //     // let key = CrateKey::new(*prev_krate, index);
-        //     let row_update = universe.compute_counts(timestamp, name, recent_meta.num.clone(), universe.crates[&name].to_vec(), i as u32);
-            
-        //     if let Some(r) = table.iter().find(|r| {
-        //         (r.transitive_count != row_update.tran_counts)
-        //             || (r.direct_count != row_update.dir_counts)
-        //             && (crate_name(&r.name) == row_update.name)
-        //             && r.version == row_update.num
-        //     }) {
-        //         let td = TranitiveDep {
-        //                 name: row_update.name.to_string(),
-        //                 timestamp,
-        //                 version: row_update.num.clone(),
-        //                 transitive_count: row_update.tran_counts,
-        //                 direct_count: row_update.dir_counts,
-        //                 total: row_update.total,
-        //             };
-        //             // TransitiveDep compares all but the timestamp
-        //             // if !extend.contains(&td) {
-        //             //     // TODO this may not be needed when running on the whole crates.io index
-        //             //     if td.transitive_count == 0 {
-        //             //         td.transitive_count = r.transitive_count;
-        //             //     }
-        //             //     if td.direct_count == 0 {
-        //             //         td.direct_count = r.direct_count;
-        //             //     }
-        //             //     println!("ADDING KRATE {:#?}", td);
-                        
-        //             // }
-        //         extend.push(td);
-        //     }
-        // }
     }
     table.extend(extend);
     table

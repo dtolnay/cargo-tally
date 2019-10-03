@@ -63,27 +63,27 @@ fn try_main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    // let pb = setup_progress_bar(3_168_028);
-    // let searching = ["tar"];
-    // // load_computed sorts array
-    // let table = load_computed(&pb, f_out)?
-    //     .into_par_iter()
-    //     .inspect(|_| pb.inc(1))
-    //     .filter(|row| matching_crates(row, &searching))
-    //     .collect::<Vec<_>>();
-    // println!("FINISHED FILTER");
-    // draw_graph(&searching, table.as_ref());
+    let pb = setup_progress_bar(2_061_884);
+    let searching = ["serde:0.8", "serde:1.0"];
+    // load_computed sorts array
+    let table = load_computed(&pb, f_out)?
+        .into_par_iter()
+        .inspect(|_| pb.inc(1))
+        .filter(|row| matching_crates(row, &searching))
+        .collect::<Vec<_>>();
+    println!("FINISHED FILTER");
+    draw_graph(&searching, table.as_ref());
 
-    let mut crates = test(f_in)?;
-    // TODO this might not be needed
-    crates.par_sort_by(|a, b| a.published.cmp(&b.published));
-    let pb = setup_progress_bar(crates.len());
-    pb.set_message("Computing direct and transitive dependencies");
-    let mut krates = pre_compute_graph(crates, &pb);
-    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
-    // from adding items at every timestamp?
-    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(f_out, krates)?;
+    // let mut crates = test(f_in)?;
+    // // TODO this might not be needed
+    // crates.par_sort_by(|a, b| a.published.cmp(&b.published));
+    // let pb = setup_progress_bar(crates.len());
+    // pb.set_message("Computing direct and transitive dependencies");
+    // let mut krates = pre_compute_graph(crates, &pb);
+    // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // // from adding items at every timestamp?
+    // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(f_out, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -114,19 +114,12 @@ fn test(file: &str) -> Result<Vec<Crate>> {
             .unwrap()
         })
         .collect::<Vec<Crate>>();
-    //let de = serde_json::Deserializer::from_slice(&json);
-    //let mut ret = Vec::new();
-    // for line in pb.wrap_iter(de.into_iter::<Crate>()) {
-    //     let krate = line?;
-    //     ret.push(krate);
-    // }
-    
+
     pb.finish_and_clear();
     Ok(krates)
 }
 
 /// Returns time sorted `Vec<TransitiveDep>`  
-// TODO decomp and deserialization is SLOW make obj smaller!!!
 fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     let json_path = Path::new(file);
     if !json_path.exists() {
@@ -149,16 +142,29 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
             .unwrap()
         })
         .collect::<Vec<TranitiveDep>>();
-    // let de = serde_json::Deserializer::from_slice(&decompressed);
-    // let mut krates = Vec::new();
-    // for line in pb.wrap_iter(de.into_iter::<TransitiveDep>()) {
-    //     let krate = line?;
-    //     krates.push(krate);
-    // }
 
-    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    
+    pb.inc(4);
+    // remove consecutive duplicates
+    krates.dedup_by(|a, b| {
+        compatible_req(&a.version).matches(&b.version)
+        && a.transitive_count == b.transitive_count
+    });
+    pb.inc(4);
+    // TODO move into pre-calc crate around line 415
+    // remove outliers 
+    let mut filtered = krates.par_windows(2)
+        .filter(|pair| {
+            (pair[0].transitive_count / pair[1].transitive_count) > 10
+        })
+        .map(|pair| pair[1].clone())
+        .collect::<Vec<_>>();
+    // windows filter skips first item
+    filtered.insert(0,krates[0].clone());
+    //TODO do this in one place and make sure its not scrambled when json serialized
+    filtered.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
     pb.finish_and_clear();
-    Ok(krates)
+    Ok(filtered)
 }
 
 fn create_matchers(search: &str) -> Result<Matcher> {
@@ -199,7 +205,11 @@ fn compatible_req(version: &Version) -> VersionReq {
 fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
     search.iter()
         .map(|&s| create_matchers(s).expect("failed to parse"))
-        .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
+        .any(|matcher| {
+            matcher.name == krate.name
+            && matcher.req.matches(&krate.version)
+            && krate.transitive_count != 0
+        })
 }
 
 fn parse_index(index: &Path) -> Result<Vec<Crate>> {
@@ -418,10 +428,10 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             &[],
         );
 
-        // Create x-axis
+        // // Create x-axis
         // let mut x = Vec::new();
         // for row in table {
-            
+        //     x.push(float_year(&row.timestamp));
         // }
 
         // Create series
