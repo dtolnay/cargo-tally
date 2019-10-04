@@ -54,7 +54,7 @@ fn main() {
 
 fn try_main() -> Result<()> {
     let f_in = "../tally.json.gz";
-    let f_out = "./computed.json.gz";
+    let f_out = "./comped.json.gz";
 
     // let opts = Opts::from_args();
     //let repo = Repository::open(&opts.index).expect("open rep");
@@ -63,12 +63,12 @@ fn try_main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
+    // RUN AFTER terminal 2 finishes pre-compute()
     let pb = setup_progress_bar(2_061_884);
     let searching = ["serde:0.8", "serde:1.0"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
-        .into_par_iter()
-        .inspect(|_| pb.inc(1))
+        .into_iter()
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
     println!("FINISHED FILTER");
@@ -123,7 +123,7 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
- 
+    pb.inc(1);
     let file = fs::File::open(json_path)?;
     let mut decoder = GzDecoder::new(file);
     let mut decompressed = String::new();
@@ -150,17 +150,25 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     });
     pb.inc(4);
     // TODO move into pre-calc crate around line 415
-    // remove outliers 
-    let mut filtered = krates.par_windows(2)
-        .filter(|pair| {
-            (pair[0].transitive_count / pair[1].transitive_count) > 10
-        })
-        .map(|pair| pair[1].clone())
-        .collect::<Vec<_>>();
-    // windows filter skips first item
-    filtered.insert(0,krates[0].clone());
+    // FIX HACK temp fix to check graph
+    // remove outliers
+    let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
+    let mut v1_total = 1;
+    let mut v08_total = 1;
+
+    krates.retain(|k| {
+        if v_req_1.matches(&k.version) {
+            let is_range = (k.transitive_count / v1_total) < 50;
+            v1_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v1_total };
+            return is_range;
+        } else {
+            let is_range = (k.transitive_count / v08_total) < 50;
+            v08_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v08_total };
+            return is_range;
+        }
+    });
     pb.finish_and_clear();
-    Ok(filtered)
+    Ok(krates)
 }
 
 fn create_matchers(search: &str) -> Result<Matcher> {
@@ -424,22 +432,22 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             &[],
         );
 
-        // // Create x-axis
-        // let mut x = Vec::new();
-        // for row in table {
-        //     x.push(float_year(&row.timestamp));
-        // }
+        // Create x-axis
+        let mut x = Vec::new();
+        for row in table {
+            x.push(float_year(&row.timestamp));
+        }
 
         // Create series
         for i in 0..n {
             let mut y = Vec::new();
-            let mut x = Vec::new();
+            // let mut x = Vec::new();
             for row in table {
 
                 println!("{:?}", row);
 
                 if version_match(krates[i], row) {
-                    x.push(float_year(&row.timestamp));
+                    // x.push(float_year(&row.timestamp));
                     y.push(row.transitive_count);
                 }
             }

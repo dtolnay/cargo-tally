@@ -390,8 +390,8 @@ fn compatible_req(version: &Version) -> VersionReq {
 
 pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
     let mut universe = Universe::new();
-    // for each version "event" this is the straight through vec
-    let mut table = Vec::new();
+    // for each version "event" this is the set that holds version releases
+    let mut table = Set::default();
     // for any changes that happen over time not at a version release event
     let mut extend = Set::default();
     for krate in crates {
@@ -419,7 +419,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         let idx = universe.crates[&name].len() as u32 - 1;
         let row = universe.compute_counts(timestamp, name, ver, idx);
 
-        table.push(TranitiveDep {
+        table.insert(TranitiveDep {
             name: krate.name,
             timestamp,
             version: krate.version,
@@ -457,7 +457,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         }
     }
     table.extend(extend);
-    table
+    table.into_iter().collect::<Vec<_>>()
 }
 
 #[cfg(test)]
