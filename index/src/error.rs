@@ -1,9 +1,8 @@
 use semver::ReqParseError;
 
-use std::fmt::{self, Display, Debug};
+use std::fmt::{self, Debug, Display};
 use std::io;
 use std::path::PathBuf;
-
 
 pub enum Error {
     ParseSeries(String, ReqParseError),
@@ -11,7 +10,6 @@ pub enum Error {
     JsonLine(PathBuf, serde_json::Error),
     Json(serde_json::Error),
     Io(io::Error),
-    
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
