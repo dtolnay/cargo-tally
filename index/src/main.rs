@@ -1,15 +1,15 @@
 mod dir;
 mod error;
 
-use cargo_tally::{TranitiveDep, Crate};
+use cargo_tally::{Crate, TranitiveDep};
 use chrono::{NaiveDateTime, Utc};
-use flate2::write::GzEncoder;
 use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
 use flate2::Compression;
 use git2::{Commit, Repository};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use lazy_static::lazy_static;
-use pre_calc::{Row, crate_name, pre_compute_graph, CrateName};
+use pre_calc::{crate_name, pre_compute_graph, CrateName, Row};
 use regex::Regex;
 use semver::{Version, VersionReq};
 use semver_parser::range::{self, Op::Compatible, Predicate};
@@ -20,7 +20,7 @@ use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BTreeMap as Map;
 use std::fs;
-use std::io::{self, Write, Read};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
@@ -81,7 +81,7 @@ fn try_main() -> Result<()> {
     // // from adding items at every timestamp
     // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
     // write_json(f_out, krates)?;
-    
+
     pb.finish_and_clear();
     Ok(())
 }
@@ -89,7 +89,7 @@ fn try_main() -> Result<()> {
 fn test(file: &str) -> Result<Vec<Crate>> {
     let pb = setup_progress_bar(139_080);
     pb.inc(1);
-    
+
     let json_path = Path::new(file);
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
@@ -98,17 +98,15 @@ fn test(file: &str) -> Result<Vec<Crate>> {
     let file = fs::File::open(json_path)?;
     let mut decoder = GzDecoder::new(file);
     let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    decoder.read_to_string(&mut decompressed)?;
 
     let krates = decompressed
         .par_lines()
         .inspect(|_| pb.inc(1))
         .map(|line| {
             serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
+                .map_err(|e| panic!("{:?}", e))
+                .unwrap()
         })
         .collect::<Vec<Crate>>();
 
@@ -126,17 +124,15 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     let file = fs::File::open(json_path)?;
     let mut decoder = GzDecoder::new(file);
     let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    decoder.read_to_string(&mut decompressed)?;
 
     let mut krates = decompressed
         .par_lines()
         .inspect(|_| pb.inc(1))
         .map(|line| {
             serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
+                .map_err(|e| panic!("{:?}", e))
+                .unwrap()
         })
         .collect::<Vec<TranitiveDep>>();
 
@@ -207,12 +203,13 @@ fn compatible_req(version: &Version) -> VersionReq {
 }
 
 fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
-    search.iter()
+    search
+        .iter()
         .map(|&s| create_matchers(s).expect("failed to parse"))
         .any(|matcher| {
             matcher.name == krate.name
-            && matcher.req.matches(&krate.version)
-            && krate.transitive_count != 0
+                && matcher.req.matches(&krate.version)
+                && krate.transitive_count != 0
         })
 }
 
@@ -379,12 +376,11 @@ fn classify_commit(commit: &Commit) -> CommitType {
     }
 }
 
-
+use chrono::{NaiveDate, NaiveTime};
 use gnuplot::{
     AlignLeft, AlignTop, Auto, AxesCommon, Caption, Color, Figure, Fix, Graph, LineWidth,
     MajorScale, Placement,
 };
-use chrono::{NaiveDate, NaiveTime};
 use palette;
 use palette::{Hue, Srgb};
 
@@ -397,11 +393,9 @@ fn version_match(ver: &str, row: &TranitiveDep) -> bool {
         println!("SHOULD NOT SEE FOR NOW");
         true
     }
-    
 }
 
 fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
-    
     let mut colors = Vec::new();
     let mut captions = Vec::new();
     let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
@@ -445,7 +439,6 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             let mut y = Vec::new();
             let mut x = Vec::new();
             for row in table {
-
                 println!("{:?}", row);
 
                 if version_match(krates[i], row) {
