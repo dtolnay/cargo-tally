@@ -134,9 +134,8 @@ impl Universe {
             let metadata = self.crates[&outdated.name][outdated.index as usize].clone();
             warn!("re-resolving {} {}", outdated.name, metadata.num);
 
-            // do I need to also recheck the redo crates??
-            let re_res = self.resolve_and_add_to_graph(*outdated, &metadata);
-            to_update.extend(re_res.crates.keys());
+            let _ = self.resolve_and_add_to_graph(*outdated, &metadata);
+
         }
         to_update     
     }
@@ -451,9 +450,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 total: row_update.total,
             };
 
-            // TransitiveDep compares all but the timestamp
             extend.insert(td);
-            //println!("{:?}", extend);
         }
     }
     table.extend(extend);

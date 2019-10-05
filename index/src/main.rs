@@ -63,8 +63,7 @@ fn try_main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    // RUN AFTER terminal 2 finishes pre-compute()
-    let pb = setup_progress_bar(2_061_884);
+    let pb = setup_progress_bar(5_448_100);
     let searching = ["serde:0.8", "serde:1.0"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
@@ -74,12 +73,12 @@ fn try_main() -> Result<()> {
     println!("FINISHED FILTER");
     draw_graph(&searching, table.as_ref());
 
-    // let mut crates = test(f_in)?;
+    // let crates = test(f_in)?;
     // let pb = setup_progress_bar(crates.len());
     // pb.set_message("Computing direct and transitive dependencies");
     // let mut krates = pre_compute_graph(crates, &pb);
     // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
-    // // from adding items at every timestamp?
+    // // from adding items at every timestamp
     // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
     // write_json(f_out, krates)?;
     
@@ -141,32 +140,33 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
         })
         .collect::<Vec<TranitiveDep>>();
 
-    
-    pb.inc(4);
-    // remove consecutive duplicates
-    krates.dedup_by(|a, b| {
-        compatible_req(&a.version).matches(&b.version)
-        && a.transitive_count == b.transitive_count
-    });
-    pb.inc(4);
-    // TODO move into pre-calc crate around line 415
-    // FIX HACK temp fix to check graph
-    // remove outliers
-    let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
-    let mut v1_total = 1;
-    let mut v08_total = 1;
+    // pb.inc(4);
+    // // TODO move into pre-calc crate around line 415
+    // // FIX HACK temp fix to check graph
+    // // remove outliers
+    // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
+    // let mut v1_total = 1;
+    // let mut v08_total = 1;
 
-    krates.retain(|k| {
-        if v_req_1.matches(&k.version) {
-            let is_range = (k.transitive_count / v1_total) < 50;
-            v1_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v1_total };
-            return is_range;
-        } else {
-            let is_range = (k.transitive_count / v08_total) < 50;
-            v08_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v08_total };
-            return is_range;
-        }
-    });
+    // krates.retain(|k| {
+    //     if v_req_1.matches(&k.version) {
+    //         let is_range = (k.transitive_count / v1_total) < 10;
+    //         v1_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v1_total };
+    //         return is_range;
+    //     } else {
+    //         let is_range = (k.transitive_count / v08_total) < 10;
+    //         v08_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v08_total };
+    //         return is_range;
+    //     }
+    // });
+
+    // pb.inc(4);
+    // // remove consecutive duplicates
+    // krates.dedup_by(|a, b| {
+    //     compatible_req(&a.version).matches(&b.version)
+    //     && a.transitive_count == b.transitive_count
+    // });
+
     pb.finish_and_clear();
     Ok(krates)
 }
@@ -432,22 +432,24 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             &[],
         );
 
-        // Create x-axis
-        let mut x = Vec::new();
-        for row in table {
-            x.push(float_year(&row.timestamp));
-        }
+        // // Create x-axis
+        // let mut x = Vec::new();
+        // for row in table {
+        //     x.push(float_year(&row.timestamp));
+        // }
+        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        // this makes the graph end early??
 
         // Create series
         for i in 0..n {
             let mut y = Vec::new();
-            // let mut x = Vec::new();
+            let mut x = Vec::new();
             for row in table {
 
                 println!("{:?}", row);
 
                 if version_match(krates[i], row) {
-                    // x.push(float_year(&row.timestamp));
+                    x.push(float_year(&row.timestamp));
                     y.push(row.transitive_count);
                 }
             }
