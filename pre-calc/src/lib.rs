@@ -387,7 +387,25 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
+struct UpdateCrate(Map<CrateKey, (usize, usize)>);
+
+impl UpdateCrate {
+    fn new() -> Self {
+        Self(Map::default())
+    }
+    fn insert(&mut self, key: CrateKey, val: (usize, usize)) -> Option<(usize, usize)> {
+        self.0.insert(key, val)
+    }
+    fn transitive_changed(&mut self, key: &CrateKey, val: (usize, usize)) -> bool {
+        self.0.entry(key.clone()).or_insert(val).0 != val.0
+    }
+    fn direct_changed(&mut self, key: &CrateKey, val: (usize, usize)) -> bool {
+        self.0.entry(key.clone()).or_insert(val).1 != val.1
+    }
+}
+
 pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
+    let mut changed_crates = UpdateCrate::new();
     let mut universe = Universe::new();
     // for each version "event" this is the set that holds version releases
     let mut table = Set::default();
@@ -427,8 +445,10 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             total: row.total,
         });
 
-        for redo_crate in updated.iter() {
+        let key = CrateKey::new(name, idx);
+        changed_crates.insert(key, (row.tran_counts, row.dir_counts));
 
+        for redo_crate in updated.iter() {
             if redo_crate.name == "tar" { info!("CURRENT {} REDO {}", name, redo_crate.name) };
 
             let metas = &universe.crates[&redo_crate.name];
@@ -449,8 +469,12 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 direct_count: row_update.dir_counts,
                 total: row_update.total,
             };
-
-            extend.insert(td);
+            let pair = (row_update.tran_counts, row_update.dir_counts);
+            if changed_crates.transitive_changed(redo_crate, pair)
+              || changed_crates.direct_changed(redo_crate, pair) 
+            {
+                extend.insert(td);
+            }
         }
     }
     table.extend(extend);
