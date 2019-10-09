@@ -61,24 +61,49 @@ fn try_main() -> Result<()> {
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
 
-    // let pb = setup_progress_bar(5_448_100);
-    // let searching = ["serde"];
-    // // load_computed sorts array
-    // let table = load_computed(&pb, f_out)?
-    //     .into_iter()
-    //     .filter(|row| matching_crates(row, &searching))
-    //     .collect::<Vec<_>>();
-    // println!("FINISHED FILTER");
-    // draw_graph(&searching, table.as_ref());
+    let pb = setup_progress_bar(5_448_100);
+    let searching = ["serde:0.7", "serde:0.8", "serde:0.9", "serde:1.0"];
+    // load_computed sorts array
+    let mut table = load_computed(&pb, f_out)?
+        .into_iter()
+        .filter(|row| matching_crates(row, &searching))
+        .collect::<Vec<_>>();
 
-    let crates = test(f_in)?;
-    let pb = setup_progress_bar(crates.len());
-    pb.set_message("Computing direct and transitive dependencies");
-    let mut krates = pre_compute_graph(crates, &pb);
-    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
-    // from adding items at every timestamp
-    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(f_out, krates)?;
+    let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
+    let mut v1_total = 1;
+    let mut v07_total = 1;
+    table.retain(|k| {
+        if v_req_1.matches(&k.version) {
+            let is_range = if k.transitive_count != 0 { (v1_total / k.transitive_count) < 50 } else { false };
+            v1_total = if is_range && k.transitive_count != 0 {
+                k.transitive_count
+            } else {
+                println!("v1: {} krate trans: {}", v1_total, k.transitive_count);
+                v1_total
+            };
+            return is_range;
+        } else {
+            let is_range = if k.transitive_count != 0 { (v07_total / k.transitive_count) < 50 } else { false };
+            v07_total = if is_range && k.transitive_count != 0 {
+                k.transitive_count
+            } else {
+                println!("v1: {} krate trans: {}", v07_total, k.transitive_count);
+                v07_total
+            };
+            return is_range;
+        }
+    });
+    println!("FINISHED FILTER");
+    draw_graph(&searching, table.as_ref());
+
+    // let crates = test(f_in)?;
+    // let pb = setup_progress_bar(crates.len());
+    // pb.set_message("Computing direct and transitive dependencies");
+    // let mut krates = pre_compute_graph(crates, &pb);
+    // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // // from adding items at every timestamp
+    // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(f_out, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -121,6 +146,7 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
         panic!("no file {:?}", json_path)
     }
     pb.inc(1);
+
     let file = fs::File::open(json_path)?;
     let mut decoder = GzDecoder::new(file);
     let mut decompressed = String::new();
@@ -444,7 +470,7 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             let mut x = Vec::new();
             for row in table {
 
-                println!("{:?}", row);
+                // println!("{:?}", row);
 
                 if version_match(krates[i], row) {
                     x.push(float_year(&row.timestamp));
