@@ -75,7 +75,7 @@ fn try_main() -> Result<()> {
     // let pb = setup_progress_bar(crates.len());
     // pb.set_message("Computing direct and transitive dependencies");
     // let mut krates = pre_compute_graph(crates, &pb);
-    // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // // sort here because when Vec<TransitiveDeps> is returned its out of order
     // // from adding items at every timestamp
     // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
     // write_json(f_out, krates)?;
