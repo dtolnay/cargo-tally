@@ -148,7 +148,8 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     pb.inc(1);
 
     let file = fs::File::open(json_path)?;
-    let mut decoder = GzDecoder::new(file);
+    let mut buf = std::io::BufReader::new(file);
+    let mut decoder = GzDecoder::new(buf);
     let mut decompressed = String::new();
     decoder.read_to_string(&mut decompressed)?; 
 
