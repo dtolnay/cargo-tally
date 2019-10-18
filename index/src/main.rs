@@ -69,30 +69,30 @@ fn try_main() -> Result<()> {
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
 
-    let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
-    let mut v1_total = 1;
-    let mut v07_total = 1;
-    table.retain(|k| {
-        if v_req_1.matches(&k.version) {
-            let is_range = if k.transitive_count != 0 { (v1_total / k.transitive_count) < 50 } else { false };
-            v1_total = if is_range && k.transitive_count != 0 {
-                k.transitive_count
-            } else {
-                println!("v1: {} krate trans: {}", v1_total, k.transitive_count);
-                v1_total
-            };
-            return is_range;
-        } else {
-            let is_range = if k.transitive_count != 0 { (v07_total / k.transitive_count) < 50 } else { false };
-            v07_total = if is_range && k.transitive_count != 0 {
-                k.transitive_count
-            } else {
-                println!("v1: {} krate trans: {}", v07_total, k.transitive_count);
-                v07_total
-            };
-            return is_range;
-        }
-    });
+    // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
+    // let mut v1_total = 1;
+    // let mut v07_total = 1;
+    // table.retain(|k| {
+    //     if v_req_1.matches(&k.version) {
+    //         let is_range = if k.transitive_count != 0 { (v1_total / k.transitive_count) < 50 } else { false };
+    //         v1_total = if is_range && k.transitive_count != 0 {
+    //             k.transitive_count
+    //         } else {
+    //             println!("v1: {} krate trans: {}", v1_total, k.transitive_count);
+    //             v1_total
+    //         };
+    //         return is_range;
+    //     } else {
+    //         let is_range = if k.transitive_count != 0 { (v07_total / k.transitive_count) < 50 } else { false };
+    //         v07_total = if is_range && k.transitive_count != 0 {
+    //             k.transitive_count
+    //         } else {
+    //             println!("v1: {} krate trans: {}", v07_total, k.transitive_count);
+    //             v07_total
+    //         };
+    //         return is_range;
+    //     }
+    // });
     println!("FINISHED FILTER");
     draw_graph(&searching, table.as_ref());
 
@@ -119,21 +119,30 @@ fn test(file: &str) -> Result<Vec<Crate>> {
     }
 
     let file = fs::File::open(json_path)?;
-    let mut decoder = GzDecoder::new(file);
-    let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    let mut buf = std::io::BufReader::new(file);
+    let mut decoder = GzDecoder::new(buf);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    let de = serde_json::Deserializer::from_slice(&decompressed);
 
-    let krates = decompressed
-        .par_lines()
-        .inspect(|_| pb.inc(1))
-        .map(|line| {
-            serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
-        })
-        .collect::<Vec<Crate>>();
+    let mut krates = Vec::new();
+    for line in de.into_iter::<Crate>() {
+        let k = line?;
+        krates.push(k);
+    }
+
+    //TODO ASK WHY HORIBLE
+    // let krates = decompressed
+    //     .par_lines()
+    //     .inspect(|_| pb.inc(1))
+    //     .map(|line| {
+    //         serde_json::from_str(line)
+    //         .map_err(|e| {
+    //             panic!("{:?}", e)
+    //         })
+    //         .unwrap()
+    //     })
+    //     .collect::<Vec<Crate>>();
 
     pb.finish_and_clear();
     Ok(krates)
@@ -150,48 +159,28 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     let file = fs::File::open(json_path)?;
     let mut buf = std::io::BufReader::new(file);
     let mut decoder = GzDecoder::new(buf);
-    let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    let de = serde_json::Deserializer::from_slice(&decompressed);
 
-    let mut krates = decompressed
-        .par_lines()
-        .inspect(|_| pb.inc(1))
-        .map(|line| {
-            serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
-        })
-        .collect::<Vec<TranitiveDep>>();
+    // HORIBLE
+    // let mut krates = decompressed
+    //     .par_lines()
+    //     .inspect(|_| pb.inc(1))
+    //     .map(|line| {
+    //         serde_json::from_str(line)
+    //         .map_err(|e| {
+    //             panic!("{:?}", e)
+    //         })
+    //         .unwrap()
+    //     })
+    //     .collect::<Vec<TranitiveDep>>();
 
-    // pb.inc(4);
-    // // TODO move into pre-calc crate around line 415
-    // // FIX HACK temp fix to check graph
-    // // remove outliers
-    // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
-    // let mut v1_total = 1;
-    // let mut v08_total = 1;
-
-    // krates.retain(|k| {
-    //     if v_req_1.matches(&k.version) {
-    //         let is_range = (k.transitive_count / v1_total) < 10;
-    //         v1_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v1_total };
-    //         return is_range;
-    //     } else {
-    //         let is_range = (k.transitive_count / v08_total) < 10;
-    //         v08_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v08_total };
-    //         return is_range;
-    //     }
-    // });
-
-    // pb.inc(4);
-    // // remove consecutive duplicates
-    // krates.dedup_by(|a, b| {
-    //     compatible_req(&a.version).matches(&b.version)
-    //     && a.transitive_count == b.transitive_count
-    // });
-
+    let mut krates = Vec::new();
+    for line in de.into_iter::<TranitiveDep>() {
+        let k = line?;
+        krates.push(k);
+    }
     pb.finish_and_clear();
     Ok(krates)
 }

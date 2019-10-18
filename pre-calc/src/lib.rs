@@ -387,30 +387,15 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
-struct UpdateCrate(Map<CrateKey, (usize, usize)>);
-
-impl UpdateCrate {
-    fn new() -> Self {
-        Self(Map::default())
-    }
-    fn insert(&mut self, key: CrateKey, val: (usize, usize)) -> Option<(usize, usize)> {
-        self.0.insert(key, val)
-    }
-    fn transitive_changed(&mut self, key: &CrateKey, val: (usize, usize)) -> bool {
-        self.0.entry(key.clone()).or_insert(val).0 != val.0
-    }
-    fn direct_changed(&mut self, key: &CrateKey, val: (usize, usize)) -> bool {
-        self.0.entry(key.clone()).or_insert(val).1 != val.1
-    }
-}
-
 pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
-    let mut changed_crates = UpdateCrate::new();
     let mut universe = Universe::new();
     // for each version "event" this is the set that holds version releases
     let mut table = Set::default();
     // for any changes that happen over time not at a version release event
     let mut extend = Set::default();
+
+    use chrono::{DateTime};
+
     for krate in crates {
         pb.inc(1);
 
@@ -426,12 +411,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
             dependencies: krate.dependencies,
         };
         // returns CrateKeys of all the updated crates
-        let all_updated = universe.process_event(ev);
-
-        let updated = all_updated
-            .iter()
-            .filter(|k| universe.crates.contains_key(&k.name))
-            .collect::<Set<_>>();
+        let updated = universe.process_event(ev);
             
         let idx = universe.crates[&name].len() as u32 - 1;
         let row = universe.compute_counts(timestamp, name, ver, idx);
@@ -446,7 +426,8 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         });
 
         let key = CrateKey::new(name, idx);
-        changed_crates.insert(key, (row.tran_counts, row.dir_counts));
+
+        let cmp_time = "2019-06-21T02:14:09-00:00".parse::<DateTime<chrono::Utc>>().expect("not a date string");
 
         for redo_crate in updated.iter() {
             if redo_crate.name == "tar" { info!("CURRENT {} REDO {}", name, redo_crate.name) };
@@ -469,12 +450,19 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 direct_count: row_update.dir_counts,
                 total: row_update.total,
             };
-            let pair = (row_update.tran_counts, row_update.dir_counts);
-            if changed_crates.transitive_changed(redo_crate, pair)
-              || changed_crates.direct_changed(redo_crate, pair) 
-            {
-                extend.insert(td);
+
+            if &td.name == "serde" && td.transitive_count == 15 {
+                //println!("{:?}\n{:?}", meta, metas);
+                updated.iter().for_each(|_| {
+                    if let Some(deps) = universe.reverse_depends.get(&redo_crate) {
+                        deps.iter().for_each(|k| {
+                            println!("{:?} at {:?} rev_dep: {:?}", td.name, td.version, k);
+                        })
+                    }
+                });
+                // panic!();
             }
+            extend.insert(td);
         }
     }
     table.extend(extend);
