@@ -451,7 +451,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 total: row_update.total,
             };
 
-            if &td.name == "serde" && td.transitive_count == 15 {
+            if &td.name == "serde" && (td.transitive_count == 15 || td.timestamp == cmp_time)  {
                 //println!("{:?}\n{:?}", meta, metas);
                 updated.iter().for_each(|_| {
                     if let Some(deps) = universe.reverse_depends.get(&redo_crate) {

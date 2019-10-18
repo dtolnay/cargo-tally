@@ -68,8 +68,10 @@ fn try_main() -> Result<()> {
         .into_iter()
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
+    println!("FINISHED FILTER");
+    draw_graph(&searching, table.as_ref());
 
-    // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
+      // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
     // let mut v1_total = 1;
     // let mut v07_total = 1;
     // table.retain(|k| {
@@ -93,8 +95,6 @@ fn try_main() -> Result<()> {
     //         return is_range;
     //     }
     // });
-    println!("FINISHED FILTER");
-    draw_graph(&searching, table.as_ref());
 
     // let crates = test(f_in)?;
     // let pb = setup_progress_bar(crates.len());
