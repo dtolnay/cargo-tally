@@ -10,6 +10,7 @@ use semver::{Version, VersionReq};
 use semver_parser::range::{self, Op::Compatible, Predicate};
 
 use std::u64;
+use std::str::FromStr;
 
 pub use cargo_tally::Crate;
 pub use intern::{crate_name, CrateName};
@@ -155,8 +156,14 @@ impl Universe {
         let mut t_resolve = Resolve { crates: Map::default(), };
 
         for dep in metadata.dependencies.iter() {
+            // fix deps that are pinned to a specific version they cause sever dips in graph
+            let unpinned_ver = if dep.req.to_string().contains('=') {
+                VersionReq::from_str(&dep.req.to_string().split('=').last().unwrap().trim()).unwrap()
+            } else {
+                dep.req.clone()
+            };
             // if the crate is in Universe.crates at the right version number
-            if let Some(index) = self.resolve(&dep.name, &dep.req) {
+            if let Some(index) = self.resolve(&dep.name, &unpinned_ver) {
                 let name = crate_name(&dep.name);
                 let key = CrateKey { name, index, };
                 // direct deps just insert
@@ -257,7 +264,15 @@ impl Resolve {
             let resolved = metadata
                 .dependencies
                 .iter()
-                .map(|dep| universe.resolve(&dep.name, &dep.req))
+                .map(|dep| {
+                    // fix deps that are pinned to a specific version they cause sever dips in graph
+                    let unpinned_ver = if dep.req.to_string().contains('=') {
+                        VersionReq::from_str(&dep.req.to_string().split('=').last().unwrap().trim()).unwrap()
+                    } else {
+                        dep.req.clone()
+                    };
+                    universe.resolve(&dep.name, &unpinned_ver)
+                })
                 .collect::<Vec<_>>();
                 
             self.crates.insert(

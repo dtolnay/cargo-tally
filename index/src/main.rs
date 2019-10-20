@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 
-const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
+const TIPS: [&str; 3] = ["origin/master", "origin/snapshot-2018-09-26", "origin/snapshot-2019-10-17"];
 
 type DateTime = chrono::DateTime<Utc>;
 
@@ -60,7 +60,7 @@ fn try_main() -> Result<()> {
     // let pb = setup_progress_bar(crates.len());
     // let timestamps = compute_timestamps(repo, &pb)?;
     // let crates = consolidate_crates(crates, timestamps);
-
+    
     let pb = setup_progress_bar(5_448_100);
     let searching = ["serde:0.7", "serde:0.8", "serde:0.9", "serde:1.0"];
     // load_computed sorts array
@@ -70,31 +70,6 @@ fn try_main() -> Result<()> {
         .collect::<Vec<_>>();
     println!("FINISHED FILTER");
     draw_graph(&searching, table.as_ref());
-
-      // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
-    // let mut v1_total = 1;
-    // let mut v07_total = 1;
-    // table.retain(|k| {
-    //     if v_req_1.matches(&k.version) {
-    //         let is_range = if k.transitive_count != 0 { (v1_total / k.transitive_count) < 50 } else { false };
-    //         v1_total = if is_range && k.transitive_count != 0 {
-    //             k.transitive_count
-    //         } else {
-    //             println!("v1: {} krate trans: {}", v1_total, k.transitive_count);
-    //             v1_total
-    //         };
-    //         return is_range;
-    //     } else {
-    //         let is_range = if k.transitive_count != 0 { (v07_total / k.transitive_count) < 50 } else { false };
-    //         v07_total = if is_range && k.transitive_count != 0 {
-    //             k.transitive_count
-    //         } else {
-    //             println!("v1: {} krate trans: {}", v07_total, k.transitive_count);
-    //             v07_total
-    //         };
-    //         return is_range;
-    //     }
-    // });
 
     // let crates = test(f_in)?;
     // let pb = setup_progress_bar(crates.len());
@@ -131,7 +106,7 @@ fn test(file: &str) -> Result<Vec<Crate>> {
         krates.push(k);
     }
 
-    //TODO ASK WHY HORIBLE
+    // TODO ASK WHY HORIBLE
     // let krates = decompressed
     //     .par_lines()
     //     .inspect(|_| pb.inc(1))
@@ -162,19 +137,6 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed)?;
     let de = serde_json::Deserializer::from_slice(&decompressed);
-
-    // HORIBLE
-    // let mut krates = decompressed
-    //     .par_lines()
-    //     .inspect(|_| pb.inc(1))
-    //     .map(|line| {
-    //         serde_json::from_str(line)
-    //         .map_err(|e| {
-    //             panic!("{:?}", e)
-    //         })
-    //         .unwrap()
-    //     })
-    //     .collect::<Vec<TranitiveDep>>();
 
     let mut krates = Vec::new();
     for line in de.into_iter::<TranitiveDep>() {
@@ -460,12 +422,10 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             let mut x = Vec::new();
             for row in table {
 
-                // println!("{:?}", row);
-
-                if version_match(krates[i], row) {
+                //if version_match(krates[i], row) {
                     x.push(float_year(&row.timestamp));
                     y.push(row.transitive_count);
-                }
+                //}
             }
             axes.lines(
                 &x,
@@ -474,8 +434,7 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             );
         }
     }
-    println!("TABLE LEN {}", table.len());
-    fg.show();
+   fg.show();
 }
 fn float_year(dt: &DateTime) -> f64 {
     let nd = NaiveDate::from_ymd(2017, 1, 1);
