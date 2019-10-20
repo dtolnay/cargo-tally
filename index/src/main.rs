@@ -1,7 +1,7 @@
 mod dir;
 mod error;
 
-use cargo_tally::{TranitiveDep, Crate};
+use cargo_tally::{TransitiveDep, Crate};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
 use flate2::read::GzDecoder;
@@ -54,24 +54,25 @@ fn try_main() -> Result<()> {
     let f_in = "../tally.json.gz";
     let f_out = "./computed.json.gz";
 
-    // let opts = Opts::from_args();
-    //let repo = Repository::open(&opts.index).expect("open rep");
-    // let crates = parse_index(&opts.index).expect("parse idx");
-    // let pb = setup_progress_bar(crates.len());
-    // let timestamps = compute_timestamps(repo, &pb)?;
-    // let crates = consolidate_crates(crates, timestamps);
-    
+    let opts = Opts::from_args();
+    let repo = Repository::open(&opts.index).expect("open rep");
+    let crates = parse_index(&opts.index).expect("parse idx");
+    let pb = setup_progress_bar(crates.len());
+    let timestamps = compute_timestamps(repo, &pb)?;
+    let crates = consolidate_crates(crates, timestamps);
+    write_json(f_in, crates)?;
+
     let pb = setup_progress_bar(5_448_100);
     let searching = ["serde:0.7", "serde:0.8", "serde:0.9", "serde:1.0"];
     // load_computed sorts array
-    let mut table = load_computed(&pb, f_out)?
+    let table = load_computed(&pb, f_out)?
         .into_iter()
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
     println!("FINISHED FILTER");
     draw_graph(&searching, table.as_ref());
 
-    // let crates = test(f_in)?;
+    //let crates = test(f_in)?;
     // let pb = setup_progress_bar(crates.len());
     // pb.set_message("Computing direct and transitive dependencies");
     // let mut krates = pre_compute_graph(crates, &pb);
@@ -106,7 +107,7 @@ fn test(file: &str) -> Result<Vec<Crate>> {
         krates.push(k);
     }
 
-    // TODO ASK WHY HORIBLE
+    // TODO ASK WHY HORRIBLE
     // let krates = decompressed
     //     .par_lines()
     //     .inspect(|_| pb.inc(1))
@@ -124,7 +125,7 @@ fn test(file: &str) -> Result<Vec<Crate>> {
 }
 
 /// Returns time sorted `Vec<TransitiveDep>`  
-fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
+fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TransitiveDep>> {
     let json_path = Path::new(file);
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
@@ -132,14 +133,14 @@ fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
     pb.inc(1);
 
     let file = fs::File::open(json_path)?;
-    let mut buf = std::io::BufReader::new(file);
+    let buf = std::io::BufReader::new(file);
     let mut decoder = GzDecoder::new(buf);
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed)?;
     let de = serde_json::Deserializer::from_slice(&decompressed);
 
     let mut krates = Vec::new();
-    for line in de.into_iter::<TranitiveDep>() {
+    for line in de.into_iter::<TransitiveDep>() {
         let k = line?;
         krates.push(k);
     }
@@ -182,7 +183,7 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
-fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
+fn matching_crates(krate: &TransitiveDep, search: &[&str]) -> bool {
     search.iter()
         .map(|&s| create_matchers(s).expect("failed to parse"))
         .any(|matcher| {
@@ -364,7 +365,7 @@ use chrono::{NaiveDate, NaiveTime};
 use palette;
 use palette::{Hue, Srgb};
 
-fn version_match(ver: &str, row: &TranitiveDep) -> bool {
+fn version_match(ver: &str, row: &TransitiveDep) -> bool {
     if let Some(ver) = ver.split(':').nth(1) {
         let pin_req = format!("^{}", ver);
         let ver_req = VersionReq::parse(&pin_req).expect("version match");
@@ -376,7 +377,7 @@ fn version_match(ver: &str, row: &TranitiveDep) -> bool {
     
 }
 
-fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
+fn draw_graph(krates: &[&str], table: &[TransitiveDep]) {
     
     let mut colors = Vec::new();
     let mut captions = Vec::new();
@@ -421,12 +422,10 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             let mut y = Vec::new();
             let mut x = Vec::new();
             for row in table {
-
-                //if version_match(krates[i], row) {
-                    x.push(float_year(&row.timestamp));
-                    y.push(row.transitive_count);
-                //}
+                x.push(float_year(&row.timestamp));
+                y.push(row.transitive_count);
             }
+
             axes.lines(
                 &x,
                 &y,
@@ -443,13 +442,4 @@ fn float_year(dt: &DateTime) -> f64 {
     let offset = dt.signed_duration_since(base);
     let year = offset.num_minutes() as f64 / 525_960.0 + 2017.0;
     year
-}
-
-mod test {
-    use super::*;
-    #[test]
-    fn run_for_output() {
-        env_logger::init();
-        super::try_main().expect("run for output failed at try_main");
-    }
 }

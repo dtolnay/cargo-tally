@@ -1,6 +1,6 @@
 mod intern;
 
-use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TranitiveDep};
+use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TransitiveDep};
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::ProgressBar;
 use log::{debug, info, warn, error};
@@ -402,7 +402,7 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
-pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
+pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TransitiveDep> {
     let mut universe = Universe::new();
     // for each version "event" this is the set that holds version releases
     let mut table = Set::default();
@@ -431,7 +431,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         let idx = universe.crates[&name].len() as u32 - 1;
         let row = universe.compute_counts(timestamp, name, ver, idx);
 
-        table.insert(TranitiveDep {
+        table.insert(TransitiveDep {
             name: krate.name,
             timestamp,
             version: krate.version,
@@ -457,7 +457,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 redo_crate.index
             );
 
-            let td = TranitiveDep {
+            let td = TransitiveDep {
                 name: row_update.name.to_string(),
                 timestamp,
                 version: row_update.num.clone(),

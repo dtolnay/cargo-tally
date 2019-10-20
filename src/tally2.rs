@@ -16,6 +16,7 @@ use std::path::Path;
 
 use crate::error;
 use crate::Args;
+use crate::csv::print_csv;
 
 type DateTime = chrono::DateTime<Utc>;
 
@@ -23,7 +24,7 @@ type DateTime = chrono::DateTime<Utc>;
 // deserialized here can't import from that crate, I'm sure there 
 // is a better way to do this.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TranitiveDep {
+pub struct TransitiveDep {
     pub name: String,
     pub timestamp: DateTime,
     pub version: Version,
@@ -40,43 +41,31 @@ struct Matcher<'a> {
 }
 
 
-// TODO fix errors so uses error.rs errors
-fn load_computed(pb: &ProgressBar) -> Result<Vec<TranitiveDep>, io::Error> {
-    let json_path = Path::new("../computed.json.gz");
+/// Returns time sorted `Vec<TransitiveDep>`  
+fn load_computed(pb: &ProgressBar) -> Result<Vec<TransitiveDep>, error::Error> {
+    let json_path = Path::new(cargo_tally::JSONFILE);
     if !json_path.exists() {
-        panic!("no file {:?}", json_path)
+        return Err(error::Error::MissingJson);
     }
- 
+    pb.inc(1);
+
     let file = fs::File::open(json_path)?;
-    let mut decoder = GzDecoder::new(file);
-    let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    let mut buf = std::io::BufReader::new(file);
+    let mut decoder = GzDecoder::new(buf);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    let de = serde_json::Deserializer::from_slice(&decompressed);
 
-    let mut krates = decompressed
-        .lines()
-        .inspect(|_| pb.inc(1))
-        .map(|line| {
-            serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
-        })
-        .collect::<Vec<TranitiveDep>>();
-    // let de = serde_json::Deserializer::from_slice(&decompressed);
-    // let mut krates = Vec::new();
-    // for line in pb.wrap_iter(de.into_iter::<TransitiveDep>()) {
-    //     let krate = line?;
-    //     krates.push(krate);
-    // }
+    let mut krates = Vec::new();
+    for line in de.into_iter::<TransitiveDep>() {
+        let k = line?;
+        krates.push(k);
+    }
     pb.finish_and_clear();
-
-    krates.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     Ok(krates)
 }
 
 fn create_matchers(search: &str) -> error::Result<Matcher> {
-
     let mut pieces = search.splitn(2, ':');
     let matcher = Matcher {
         name: pieces.next().unwrap(),
@@ -86,17 +75,16 @@ fn create_matchers(search: &str) -> error::Result<Matcher> {
         },
         nodes: Vec::new(),
     };
-
     Ok(matcher)
 }
 
-fn matching_crates(krate: &TranitiveDep, search: &[String]) -> bool {
+fn matching_crates(krate: &TransitiveDep, search: &[String]) -> bool {
     search.iter()
         .map(|s| create_matchers(s).expect("failed to parse"))
         .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
 }
 
-fn draw_graph2(args: &Args, table: &[TranitiveDep]) {
+fn draw_graph2(args: &Args, table: &[TransitiveDep]) {
     let mut colors = Vec::new();
     let mut captions = Vec::new();
     let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
@@ -126,43 +114,24 @@ fn draw_graph2(args: &Args, table: &[TranitiveDep]) {
             &[Placement(AlignLeft, AlignTop)],
             &[],
         );
-
-        // Create x-axis
-        let mut x = Vec::new();
-        for row in table {
-            x.push(float_year(&row.timestamp));
-        }
-
         // Create series
         for i in 0..n {
-            if args.relative {
-                let mut y = Vec::new();
-
-                for row in table {
-                    let counts = if args.transitive { row.transitive_count } else { row.direct_count };
-                    y.push(counts as f32 / row.total as f32);
-                }
-                axes.lines(
-                    &x,
-                    &y,
-                    &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
-                );
-            } else {
-                let mut y = Vec::new();
-                for row in table {
-                    let counts = if args.transitive { row.transitive_count } else { row.direct_count };
-                    y.push(counts);
-                }
-                axes.lines(
-                    &x,
-                    &y,
-                    &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
-                );
+            let mut y = Vec::new();
+            let mut x = Vec::new();
+            for row in table {
+                x.push(float_year(&row.timestamp));
+                y.push(row.transitive_count);
             }
+            axes.lines(
+                &x,
+                &y,
+                &[Caption(&captions[i]), LineWidth(1.5), Color(&colors[i])],
+            );
         }
     }
     fg.show();
 }
+
 fn float_year(dt: &DateTime) -> f64 {
     let nd = NaiveDate::from_ymd(2017, 1, 1);
     let nt = NaiveTime::from_hms_milli(0, 0, 0, 0);
@@ -182,6 +151,11 @@ pub(crate) fn tally2(args: &Args) -> error::Result<()> {
         .filter(|k| matching_crates(k, &args.crates))
         .collect::<Vec<_>>();
     
-    draw_graph2(args, table.as_ref());
+    if args.title.is_some() {
+        draw_graph2(args, &table);
+    } else {
+        // TODO
+        // print_csv(args, &table);
+    }
     Ok(())
 }
