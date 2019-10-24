@@ -84,6 +84,17 @@ fn matching_crates(krate: &TransitiveDep, search: &[String]) -> bool {
         .any(|matcher| matcher.name == krate.name && matcher.req.matches(&krate.version))
 }
 
+fn version_match(ver: &str, row: &TransitiveDep) -> bool {
+    if let Some(ver) = ver.split(':').nth(1) {
+        let pin_req = format!("^{}", ver);
+        let ver_req = VersionReq::parse(&pin_req).expect("version match");
+        ver_req.matches(&row.version)
+    } else {
+        println!("SHOULD NOT SEE FOR NOW");
+        true
+    }
+}
+
 fn draw_graph2(args: &Args, table: &[TransitiveDep]) {
     let mut colors = Vec::new();
     let mut captions = Vec::new();
@@ -119,8 +130,10 @@ fn draw_graph2(args: &Args, table: &[TransitiveDep]) {
             let mut y = Vec::new();
             let mut x = Vec::new();
             for row in table {
-                x.push(float_year(&row.timestamp));
-                y.push(row.transitive_count);
+                if version_match(&args.crates[i], row) {
+                    x.push(float_year(&row.timestamp));
+                    y.push(row.transitive_count);
+                }
             }
             axes.lines(
                 &x,

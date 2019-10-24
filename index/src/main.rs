@@ -54,25 +54,24 @@ fn try_main() -> Result<()> {
     let f_in = "../tally.json.gz";
     let f_out = "./computed.json.gz";
 
-    let opts = Opts::from_args();
-    let repo = Repository::open(&opts.index).expect("open rep");
-    let crates = parse_index(&opts.index).expect("parse idx");
-    let pb = setup_progress_bar(crates.len());
-    let timestamps = compute_timestamps(repo, &pb)?;
-    let crates = consolidate_crates(crates, timestamps);
-    write_json(f_in, crates);
+    // let opts = Opts::from_args();
+    // let repo = Repository::open(&opts.index).expect("open rep");
+    // let crates = parse_index(&opts.index).expect("parse idx");
+    // let pb = setup_progress_bar(crates.len());
+    // let timestamps = compute_timestamps(repo, &pb)?;
+    // let crates = consolidate_crates(crates, timestamps);
 
-    let crates = test(f_in)?;
-    let pb = setup_progress_bar(crates.len());
-    pb.set_message("Computing direct and transitive dependencies");
-    let mut krates = pre_compute_graph(crates, &pb);
-    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
-    // from adding items at every timestamp
-    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    write_json(f_out, krates)?;
+    // let crates = test(f_in)?;
+    // let pb = setup_progress_bar(crates.len());
+    // pb.set_message("Computing direct and transitive dependencies");
+    // let mut krates = pre_compute_graph(crates, &pb);
+    // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // // from adding items at every timestamp
+    // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    // write_json(f_out, krates)?;
 
     let pb = setup_progress_bar(5_448_100);
-    let searching = ["serde:0.7", "serde:0.8", "serde:0.9", "serde:1.0"];
+    let searching = ["serde:0.5", "serde:0.6", "serde:0.7", "serde:0.8", "serde:0.9", "serde:1.0"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
         .into_par_iter()
@@ -361,7 +360,6 @@ fn version_match(ver: &str, row: &TransitiveDep) -> bool {
         println!("SHOULD NOT SEE FOR NOW");
         true
     }
-    
 }
 
 fn draw_graph(krates: &[&str], table: &[TransitiveDep]) {
@@ -406,8 +404,10 @@ fn draw_graph(krates: &[&str], table: &[TransitiveDep]) {
             let mut y = Vec::new();
             let mut x = Vec::new();
             for row in table {
-                x.push(float_year(&row.timestamp));
-                y.push(row.transitive_count);
+                if version_match(krates[i], row) {
+                    x.push(float_year(&row.timestamp));
+                    y.push(row.transitive_count);
+                }
             }
 
             axes.lines(
