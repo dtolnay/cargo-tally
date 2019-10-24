@@ -439,13 +439,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<Transitive
             total: row.total,
         });
 
-        let key = CrateKey::new(name, idx);
-
-        let cmp_time = "2019-06-21T02:14:09-00:00".parse::<DateTime<chrono::Utc>>().expect("not a date string");
-
         for redo_crate in updated.iter() {
-            if redo_crate.name == "tar" { info!("CURRENT {} REDO {}", name, redo_crate.name) };
-
             let metas = &universe.crates[&redo_crate.name];
             let meta = &metas[redo_crate.index as usize];
 
