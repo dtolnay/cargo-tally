@@ -60,26 +60,25 @@ fn try_main() -> Result<()> {
     let pb = setup_progress_bar(crates.len());
     let timestamps = compute_timestamps(repo, &pb)?;
     let crates = consolidate_crates(crates, timestamps);
-    write_json(f_in, crates)?;
+
+    let crates = test(f_in)?;
+    let pb = setup_progress_bar(crates.len());
+    pb.set_message("Computing direct and transitive dependencies");
+    let mut krates = pre_compute_graph(crates, &pb);
+    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // from adding items at every timestamp
+    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(f_out, krates)?;
 
     let pb = setup_progress_bar(5_448_100);
     let searching = ["serde:0.7", "serde:0.8", "serde:0.9", "serde:1.0"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
-        .into_iter()
+        .into_par_iter()
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
     println!("FINISHED FILTER");
     draw_graph(&searching, table.as_ref());
-
-    //let crates = test(f_in)?;
-    // let pb = setup_progress_bar(crates.len());
-    // pb.set_message("Computing direct and transitive dependencies");
-    // let mut krates = pre_compute_graph(crates, &pb);
-    // // sort here because when Vec<TransitiveDeps> is returned its out of order
-    // // from adding items at every timestamp
-    // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    // write_json(f_out, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -106,19 +105,6 @@ fn test(file: &str) -> Result<Vec<Crate>> {
         let k = line?;
         krates.push(k);
     }
-
-    // TODO ASK WHY HORRIBLE
-    // let krates = decompressed
-    //     .par_lines()
-    //     .inspect(|_| pb.inc(1))
-    //     .map(|line| {
-    //         serde_json::from_str(line)
-    //         .map_err(|e| {
-    //             panic!("{:?}", e)
-    //         })
-    //         .unwrap()
-    //     })
-    //     .collect::<Vec<Crate>>();
 
     pb.finish_and_clear();
     Ok(krates)
@@ -395,7 +381,12 @@ fn draw_graph(krates: &[&str], table: &[TransitiveDep]) {
     {
         // Create plot
         let axes = fg.axes2d();
-        axes.set_title(&format!("testing {} transitive deps", krates[0]), &[]);
+        let title = if krates.len() > 1 {
+            krates.join(", ")
+        } else {
+            krates[0].into()
+        };
+        axes.set_title(&format!("testing {} transitive deps", title), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
             Fix(float_year(&Utc::now()) + 0.15),
@@ -408,14 +399,6 @@ fn draw_graph(krates: &[&str], table: &[TransitiveDep]) {
             &[Placement(AlignLeft, AlignTop)],
             &[],
         );
-
-        // // Create x-axis
-        // let mut x = Vec::new();
-        // for row in table {
-        //     x.push(float_year(&row.timestamp));
-        // }
-        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        // this makes the graph end early??
 
         // Create series
         for i in 0..n {

@@ -142,6 +142,13 @@ impl Universe {
     }
 
     fn resolve(&self, name: &str, req: &VersionReq) -> Option<u32> {
+        // fix deps that are pinned to a specific version they cause sever dips in graph
+        let unpinned_ver = if req.to_string().contains('=') {
+            VersionReq::from_str(req.to_string().split('=').last().unwrap().trim()).unwrap()
+        } else {
+            req.clone()
+        };
+
         self.crates
             .get(&crate_name(name))?
             .iter()
@@ -201,26 +208,21 @@ impl Universe {
         num: Version,
         index: u32,
     ) -> Row {
-        let mut set = Set::default();
         Row {
             timestamp,
             name,
             num,
             tran_counts: {
-                    set.clear();
                     let key = CrateKey::new(name, index);
                     if let Some(deps) = self.reverse_depends.get(&key) {
-                        set.extend(deps.iter().map(|key| key.name));
-                        set.len()
+                        deps.len()
                     } else {
                         0
                     }
                 },
             dir_counts: {
-                    set.clear();
                     if let Some(deps) = self.dir_depends.get(&name) {
-                        set.extend(deps.iter().map(|key| key.name));
-                        set.len()
+                        deps.len()
                     } else {
                         0
                     }
@@ -405,12 +407,9 @@ fn compatible_req(version: &Version) -> VersionReq {
 pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TransitiveDep> {
     let mut universe = Universe::new();
     // for each version "event" this is the set that holds version releases
-    let mut table = Set::default();
     // for any changes that happen over time not at a version release event
-    let mut extend = Set::default();
-
-    use chrono::{DateTime};
-
+    let mut table = Set::default();
+    
     for krate in crates {
         pb.inc(1);
 
@@ -466,28 +465,8 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<Transitive
                 total: row_update.total,
             };
 
-            if &td.name == "serde" && (td.transitive_count == 15 || td.timestamp == cmp_time)  {
-                //println!("{:?}\n{:?}", meta, metas);
-                updated.iter().for_each(|_| {
-                    if let Some(deps) = universe.reverse_depends.get(&redo_crate) {
-                        deps.iter().for_each(|k| {
-                            println!("{:?} at {:?} rev_dep: {:?}", td.name, td.version, k);
-                        })
-                    }
-                });
-                // panic!();
-            }
-            extend.insert(td);
+            table.insert(td);
         }
     }
-    table.extend(extend);
-    table.into_iter().collect::<Vec<_>>()
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+    table.into_iter().collect()
 }

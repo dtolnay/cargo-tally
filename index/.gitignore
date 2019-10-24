@@ -2,7 +2,6 @@
 /graphs/
 tally.json*
 computed.json*
-mini.json*
-comped.json*
-not.json
+flamegraph.svg
+perf.*
 target/
