@@ -1,6 +1,6 @@
 mod intern;
 
-use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TranitiveDep};
+use cargo_tally::{Dependency, DependencyKind, Feature, DateTime, TransitiveDep};
 use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::ProgressBar;
 use log::{debug, info, warn, error};
@@ -10,6 +10,7 @@ use semver::{Version, VersionReq};
 use semver_parser::range::{self, Op::Compatible, Predicate};
 
 use std::u64;
+use std::str::FromStr;
 
 pub use cargo_tally::Crate;
 pub use intern::{crate_name, CrateName};
@@ -141,6 +142,13 @@ impl Universe {
     }
 
     fn resolve(&self, name: &str, req: &VersionReq) -> Option<u32> {
+        // fix deps that are pinned to a specific version they cause sever dips in graph
+        let unpinned_ver = if req.to_string().contains('=') {
+            VersionReq::from_str(req.to_string().split('=').last().unwrap().trim()).unwrap()
+        } else {
+            req.clone()
+        };
+
         self.crates
             .get(&crate_name(name))?
             .iter()
@@ -194,26 +202,21 @@ impl Universe {
         num: Version,
         index: u32,
     ) -> Row {
-        let mut set = Set::default();
         Row {
             timestamp,
             name,
             num,
             tran_counts: {
-                    set.clear();
                     let key = CrateKey::new(name, index);
                     if let Some(deps) = self.reverse_depends.get(&key) {
-                        set.extend(deps.iter().map(|key| key.name));
-                        set.len()
+                        deps.len()
                     } else {
                         0
                     }
                 },
             dir_counts: {
-                    set.clear();
                     if let Some(deps) = self.dir_depends.get(&name) {
-                        set.extend(deps.iter().map(|key| key.name));
-                        set.len()
+                        deps.len()
                     } else {
                         0
                     }
@@ -387,12 +390,12 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
-pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveDep> {
+pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TransitiveDep> {
     let mut universe = Universe::new();
     // for each version "event" this is the set that holds version releases
-    let mut table = Set::default();
     // for any changes that happen over time not at a version release event
-    let mut extend = Set::default();
+    let mut table = Set::default();
+    
     for krate in crates {
         pb.inc(1);
 
@@ -418,7 +421,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
         let idx = universe.crates[&name].len() as u32 - 1;
         let row = universe.compute_counts(timestamp, name, ver, idx);
 
-        table.insert(TranitiveDep {
+        table.insert(TransitiveDep {
             name: krate.name,
             timestamp,
             version: krate.version,
@@ -441,7 +444,7 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 redo_crate.index
             );
 
-            let td = TranitiveDep {
+            let td = TransitiveDep {
                 name: row_update.name.to_string(),
                 timestamp,
                 version: row_update.num.clone(),
@@ -450,17 +453,8 @@ pub fn pre_compute_graph(crates: Vec<Crate>, pb: &ProgressBar) -> Vec<TranitiveD
                 total: row_update.total,
             };
 
-            extend.insert(td);
+            table.insert(td);
         }
     }
-    table.extend(extend);
-    table.into_iter().collect::<Vec<_>>()
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+    table.into_iter().collect()
 }

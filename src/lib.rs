@@ -33,7 +33,7 @@ pub struct Dependency {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct TranitiveDep {
+pub struct TransitiveDep {
     pub name: String,
     pub timestamp: DateTime,
     pub version: Version,

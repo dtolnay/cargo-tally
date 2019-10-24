@@ -1,7 +1,7 @@
 mod dir;
 mod error;
 
-use cargo_tally::{TranitiveDep, Crate};
+use cargo_tally::{TransitiveDep, Crate};
 use chrono::{NaiveDateTime, Utc};
 use flate2::write::GzEncoder;
 use flate2::read::GzDecoder;
@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 
-const TIPS: [&str; 2] = ["origin/master", "origin/snapshot-2018-09-26"];
+const TIPS: [&str; 3] = ["origin/master", "origin/snapshot-2018-09-26", "origin/snapshot-2019-10-17"];
 
 type DateTime = chrono::DateTime<Utc>;
 
@@ -54,31 +54,31 @@ fn try_main() -> Result<()> {
     let f_in = "../tally.json.gz";
     let f_out = "./comped.json.gz";
 
-    // let opts = Opts::from_args();
-    //let repo = Repository::open(&opts.index).expect("open rep");
-    // let crates = parse_index(&opts.index).expect("parse idx");
-    // let pb = setup_progress_bar(crates.len());
-    // let timestamps = compute_timestamps(repo, &pb)?;
-    // let crates = consolidate_crates(crates, timestamps);
+    let opts = Opts::from_args();
+    let repo = Repository::open(&opts.index).expect("open rep");
+    let crates = parse_index(&opts.index).expect("parse idx");
+    let pb = setup_progress_bar(crates.len());
+    let timestamps = compute_timestamps(repo, &pb)?;
+    let crates = consolidate_crates(crates, timestamps);
+
+    let crates = test(f_in)?;
+    let pb = setup_progress_bar(crates.len());
+    pb.set_message("Computing direct and transitive dependencies");
+    let mut krates = pre_compute_graph(crates, &pb);
+    // sort here becasue when Vec<TransitiveDeps> is returned its out of order
+    // from adding items at every timestamp
+    krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    write_json(f_out, krates)?;
 
     let pb = setup_progress_bar(5_448_100);
     let searching = ["serde:0.8", "serde:1.0"];
     // load_computed sorts array
     let table = load_computed(&pb, f_out)?
-        .into_iter()
+        .into_par_iter()
         .filter(|row| matching_crates(row, &searching))
         .collect::<Vec<_>>();
     println!("FINISHED FILTER");
     draw_graph(&searching, table.as_ref());
-
-    // let crates = test(f_in)?;
-    // let pb = setup_progress_bar(crates.len());
-    // pb.set_message("Computing direct and transitive dependencies");
-    // let mut krates = pre_compute_graph(crates, &pb);
-    // // sort here becasue when Vec<TransitiveDeps> is returned its out of order
-    // // from adding items at every timestamp
-    // krates.par_sort_unstable_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    // write_json(f_out, krates)?;
     
     pb.finish_and_clear();
     Ok(())
@@ -94,76 +94,42 @@ fn test(file: &str) -> Result<Vec<Crate>> {
     }
 
     let file = fs::File::open(json_path)?;
-    let mut decoder = GzDecoder::new(file);
-    let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    let mut buf = std::io::BufReader::new(file);
+    let mut decoder = GzDecoder::new(buf);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    let de = serde_json::Deserializer::from_slice(&decompressed);
 
-    let krates = decompressed
-        .par_lines()
-        .inspect(|_| pb.inc(1))
-        .map(|line| {
-            serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
-        })
-        .collect::<Vec<Crate>>();
+    let mut krates = Vec::new();
+    for line in de.into_iter::<Crate>() {
+        let k = line?;
+        krates.push(k);
+    }
 
     pb.finish_and_clear();
     Ok(krates)
 }
 
 /// Returns time sorted `Vec<TransitiveDep>`  
-fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TranitiveDep>> {
+fn load_computed(pb: &ProgressBar, file: &str) -> Result<Vec<TransitiveDep>> {
     let json_path = Path::new(file);
     if !json_path.exists() {
         panic!("no file {:?}", json_path)
     }
     pb.inc(1);
+    
     let file = fs::File::open(json_path)?;
-    let mut decoder = GzDecoder::new(file);
-    let mut decompressed = String::new();
-    decoder.read_to_string(&mut decompressed)?; 
+    let buf = std::io::BufReader::new(file);
+    let mut decoder = GzDecoder::new(buf);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    let de = serde_json::Deserializer::from_slice(&decompressed);
 
-    let mut krates = decompressed
-        .par_lines()
-        .inspect(|_| pb.inc(1))
-        .map(|line| {
-            serde_json::from_str(line)
-            .map_err(|e| {
-                panic!("{:?}", e)
-            })
-            .unwrap()
-        })
-        .collect::<Vec<TranitiveDep>>();
-
-    // pb.inc(4);
-    // // TODO move into pre-calc crate around line 415
-    // // FIX HACK temp fix to check graph
-    // // remove outliers
-    // let v_req_1 = VersionReq::parse("1.0").expect("version req fail");
-    // let mut v1_total = 1;
-    // let mut v08_total = 1;
-
-    // krates.retain(|k| {
-    //     if v_req_1.matches(&k.version) {
-    //         let is_range = (k.transitive_count / v1_total) < 10;
-    //         v1_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v1_total };
-    //         return is_range;
-    //     } else {
-    //         let is_range = (k.transitive_count / v08_total) < 10;
-    //         v08_total = if is_range && k.transitive_count != 0 { k.transitive_count } else { v08_total };
-    //         return is_range;
-    //     }
-    // });
-
-    // pb.inc(4);
-    // // remove consecutive duplicates
-    // krates.dedup_by(|a, b| {
-    //     compatible_req(&a.version).matches(&b.version)
-    //     && a.transitive_count == b.transitive_count
-    // });
+    let mut krates = Vec::new();
+    for line in de.into_iter::<TransitiveDep>() {
+        let k = line?;
+        krates.push(k);
+    }
 
     pb.finish_and_clear();
     Ok(krates)
@@ -204,7 +170,7 @@ fn compatible_req(version: &Version) -> VersionReq {
     })
 }
 
-fn matching_crates(krate: &TranitiveDep, search: &[&str]) -> bool {
+fn matching_crates(krate: &TransitiveDep, search: &[&str]) -> bool {
     search.iter()
         .map(|&s| create_matchers(s).expect("failed to parse"))
         .any(|matcher| {
@@ -386,7 +352,7 @@ use chrono::{NaiveDate, NaiveTime};
 use palette;
 use palette::{Hue, Srgb};
 
-fn version_match(ver: &str, row: &TranitiveDep) -> bool {
+fn version_match(ver: &str, row: &TransitiveDep) -> bool {
     if let Some(ver) = ver.split(':').nth(1) {
         let pin_req = format!("^{}", ver);
         let ver_req = VersionReq::parse(&pin_req).expect("version match");
@@ -398,7 +364,7 @@ fn version_match(ver: &str, row: &TranitiveDep) -> bool {
     
 }
 
-fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
+fn draw_graph(krates: &[&str], table: &[TransitiveDep]) {
     
     let mut colors = Vec::new();
     let mut captions = Vec::new();
@@ -416,7 +382,12 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
     {
         // Create plot
         let axes = fg.axes2d();
-        axes.set_title(&format!("testing {} transitive deps", krates[0]), &[]);
+        let title = if krates.len() > 1 {
+            krates.join(", ")
+        } else {
+            krates[0].into()
+        };
+        axes.set_title(&format!("testing {} transitive deps", title), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
             Fix(float_year(&Utc::now()) + 0.15),
@@ -429,14 +400,6 @@ fn draw_graph(krates: &[&str], table: &[TranitiveDep]) {
             &[Placement(AlignLeft, AlignTop)],
             &[],
         );
-
-        // // Create x-axis
-        // let mut x = Vec::new();
-        // for row in table {
-        //     x.push(float_year(&row.timestamp));
-        // }
-        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        // this makes the graph end early??
 
         // Create series
         for i in 0..n {
@@ -470,11 +433,3 @@ fn float_year(dt: &DateTime) -> f64 {
     year
 }
 
-mod test {
-    use super::*;
-    #[test]
-    fn run_for_output() {
-        env_logger::init();
-        super::try_main().expect("run for output failed at try_main");
-    }
-}
