@@ -60,6 +60,7 @@ fn try_main() -> Result<()> {
     let pb = setup_progress_bar(crates.len());
     let timestamps = compute_timestamps(repo, &pb)?;
     let crates = consolidate_crates(crates, timestamps);
+    write_json(f_in, crates);
 
     let crates = test(f_in)?;
     let pb = setup_progress_bar(crates.len());
