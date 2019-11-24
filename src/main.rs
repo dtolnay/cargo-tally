@@ -18,7 +18,6 @@ mod error;
 mod graph;
 mod init;
 mod intern;
-mod progress;
 mod tally;
 
 use crate::init::init;

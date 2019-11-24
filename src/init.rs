@@ -6,7 +6,6 @@ use std::fs::File;
 use std::io;
 
 use crate::error::Result;
-use crate::progress::ProgressRead;
 
 pub(crate) fn init() -> Result<()> {
     let snapshot =
@@ -18,7 +17,7 @@ pub(crate) fn init() -> Result<()> {
         setup_pb(&pb, &jsongz);
     }
 
-    let mut tracker = ProgressRead::new(&pb, jsongz);
+    let mut tracker = pb.wrap_read(jsongz);
     let mut out = File::create(cargo_tally::JSONFILE)?;
     io::copy(&mut tracker, &mut out)?;
 
