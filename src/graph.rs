@@ -78,7 +78,7 @@ pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
             }
         }
     }
-    fg.show();
+    let _ = fg.show();
 }
 
 fn float_year(dt: &DateTime) -> f64 {
