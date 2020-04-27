@@ -28,11 +28,9 @@ use crate::tally::tally;
 enum Opts {
     #[structopt(
         name = "tally",
-        raw(
-            setting = "AppSettings::UnifiedHelpMessage",
-            setting = "AppSettings::DeriveDisplayOrder",
-            setting = "AppSettings::DontCollapseArgsInUsage",
-        )
+        setting = AppSettings::UnifiedHelpMessage,
+        setting = AppSettings::DeriveDisplayOrder,
+        setting = AppSettings::DontCollapseArgsInUsage
     )]
     /// Tally the number of crates that depend on a group of crates over time.
     Tally(Args),
