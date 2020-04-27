@@ -5,24 +5,28 @@ use gnuplot::{
     MajorScale, Placement,
 };
 
-use palette;
-use palette::{Hue, Srgb};
-
 use crate::tally::Row;
 use crate::Args;
 use cargo_tally::DateTime;
 
 pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
     let mut colors = Vec::new();
-    let mut captions = Vec::new();
-    let primary: palette::Color = Srgb::new(217u8, 87, 43).into_format().into_linear().into();
     let n = args.crates.len();
-    for i in 0..n {
-        let linear = primary.shift_hue(360.0 * ((i + 1) as f32) / (n as f32));
-        let srgb = Srgb::from_linear(linear.into()).into_format::<u8>();
-        let hex = format!("#{:02X}{:02X}{:02X}", srgb.red, srgb.green, srgb.blue);
-        colors.push(hex);
-        captions.push(args.crates[i].replace('_', "\\\\_"));
+    if n <= 10 {
+        let color_scheme = colorous::CATEGORY10;
+        for i in 0..n {
+            colors.push(format!("#{:X}", color_scheme[i]));
+        }
+    } else {
+        let color_scheme = colorous::SINEBOW;
+        for i in 0..n {
+            colors.push(format!("#{:X}", color_scheme.eval_rational(i, n)));
+        }
+    }
+
+    let mut captions = Vec::new();
+    for c in &args.crates {
+        captions.push(c.replace('_', "\\\\_"));
     }
 
     let mut fg = Figure::new();
