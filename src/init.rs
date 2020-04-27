@@ -1,6 +1,6 @@
 use atty::{self, Stream::Stderr};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use reqwest::{self, Response};
+use reqwest::blocking::Response;
 
 use std::fs::File;
 use std::io;
@@ -10,7 +10,7 @@ use crate::error::Result;
 pub(crate) fn init() -> Result<()> {
     let snapshot =
         "https://github.com/dtolnay/cargo-tally/releases/download/2019-06-21/tally.json.gz";
-    let jsongz = reqwest::get(snapshot)?.error_for_status()?;
+    let jsongz = reqwest::blocking::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
     if atty::is(Stderr) {
