@@ -34,8 +34,5 @@ url = "2.0"
 [workspace]
 members = ["index"]
 
-[badges]
-travis-ci = { repository = "dtolnay/cargo-tally" }
-
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
