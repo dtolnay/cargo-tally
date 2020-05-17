@@ -26,14 +26,14 @@ pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
 
     let mut captions = Vec::new();
     for c in &args.crates {
-        captions.push(c.replace('_', "\\\\_"));
+        captions.push(c.replace('_', "\\_"));
     }
 
     let mut fg = Figure::new();
     {
         // Create plot
         let axes = fg.axes2d();
-        axes.set_title(&args.title.as_ref().unwrap().replace('_', "\\\\_"), &[]);
+        axes.set_title(&args.title.as_ref().unwrap().replace('_', "\\_"), &[]);
         axes.set_x_range(
             Fix(float_year(&table[0].timestamp) - 0.3),
             Fix(float_year(&Utc::now()) + 0.15),
