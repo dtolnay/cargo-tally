@@ -16,7 +16,7 @@ chrono = { version = "0.4", features = ["serde"] }
 colorous = "1.0"
 flate2 = "1.0"
 fnv = "1.0"
-gnuplot = "0.0.35"
+gnuplot = "0.0.37"
 indicatif = "0.14"
 lazy_static = "1.0"
 log = "0.4"
