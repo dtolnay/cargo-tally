@@ -27,7 +27,7 @@ semver = { version = "0.10", features = ["serde"] }
 semver-parser = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-string-interner = "0.7"
+string-interner = "0.12"
 structopt = "0.3"
 url = "2.0"
 

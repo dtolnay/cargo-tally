@@ -1,6 +1,6 @@
 use fnv::FnvBuildHasher;
 use lazy_static::lazy_static;
-use string_interner::{StringInterner, Symbol};
+use string_interner::{backend::StringBackend as InternBackend, StringInterner, Symbol};
 
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Display};
@@ -12,7 +12,7 @@ lazy_static! {
 }
 
 struct SymbolsStayOnOneThread {
-    interner: UnsafeCell<StringInterner<CrateName, FnvBuildHasher>>,
+    interner: UnsafeCell<StringInterner<CrateName, InternBackend<CrateName>, FnvBuildHasher>>,
 }
 
 impl Default for SymbolsStayOnOneThread {
@@ -39,11 +39,11 @@ pub fn crate_name<T: Into<String> + AsRef<str>>(string: T) -> CrateName {
 }
 
 impl Symbol for CrateName {
-    fn from_usize(value: usize) -> Self {
-        CrateName {
+    fn try_from_usize(value: usize) -> Option<Self> {
+        Some(CrateName {
             value: value as u32,
             not_send_sync: PhantomData,
-        }
+        })
     }
 
     fn to_usize(self) -> usize {
@@ -56,10 +56,8 @@ impl Deref for CrateName {
 
     fn deref(&self) -> &str {
         let c = INTERN.interner.get();
-        unsafe {
-            let c = &*c;
-            c.resolve_unchecked(*self)
-        }
+        let c = unsafe { &*c };
+        c.resolve(*self).expect("encountered invalid symbol")
     }
 }
 
