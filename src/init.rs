@@ -9,7 +9,7 @@ use crate::error::Result;
 
 pub(crate) fn init() -> Result<()> {
     let snapshot =
-        "https://github.com/dtolnay/cargo-tally/releases/download/2020-04-27/tally.json.gz";
+        "https://github.com/dtolnay/cargo-tally/releases/download/2020-11-25/tally.json.gz";
     let jsongz = reqwest::blocking::get(snapshot)?.error_for_status()?;
 
     let pb = ProgressBar::hidden();
