@@ -21,8 +21,9 @@ use std::process;
 
 use crate::error::{Error, Result};
 
-const TIPS: [&str; 5] = [
+const TIPS: [&str; 6] = [
     "origin/master",
+    "origin/snapshot-2020-11-20",
     "origin/snapshot-2020-08-04",
     "origin/snapshot-2020-03-25",
     "origin/snapshot-2019-10-17",
