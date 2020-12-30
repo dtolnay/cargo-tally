@@ -2,6 +2,8 @@
     clippy::let_and_return,
     clippy::map_entry,
     clippy::needless_pass_by_value,
+    clippy::needless_range_loop,
+    clippy::unnecessary_unwrap,
     clippy::unreadable_literal
 )]
 
