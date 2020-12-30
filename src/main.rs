@@ -1,5 +1,12 @@
 #![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::default_trait_access,
+    clippy::doc_markdown,
+    clippy::enum_glob_use,
+    clippy::find_map,
     clippy::let_and_return,
+    clippy::let_underscore_drop,
     clippy::map_entry,
     clippy::needless_pass_by_value,
     clippy::unnecessary_unwrap,
