@@ -1,3 +1,10 @@
+#![allow(
+    clippy::clone_on_copy,
+    clippy::enum_glob_use,
+    clippy::items_after_statements,
+    clippy::needless_pass_by_value
+)]
+
 mod dir;
 mod error;
 
