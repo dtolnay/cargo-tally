@@ -14,8 +14,8 @@ pub(crate) fn draw_graph(args: &Args, table: &[Row]) {
     let n = args.crates.len();
     if n <= 10 {
         let color_scheme = colorous::CATEGORY10;
-        for i in 0..n {
-            colors.push(format!("#{:X}", color_scheme[i]));
+        for color in color_scheme.iter().take(n) {
+            colors.push(format!("#{:X}", color));
         }
     } else {
         let color_scheme = colorous::SINEBOW;
