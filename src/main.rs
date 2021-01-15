@@ -9,6 +9,7 @@
     clippy::let_underscore_drop,
     clippy::map_entry,
     clippy::needless_pass_by_value,
+    clippy::needless_return,
     clippy::unnecessary_unwrap,
     clippy::unreadable_literal
 )]
