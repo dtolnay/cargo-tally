@@ -4,7 +4,6 @@
     clippy::default_trait_access,
     clippy::doc_markdown,
     clippy::enum_glob_use,
-    clippy::find_map,
     clippy::let_and_return,
     clippy::let_underscore_drop,
     clippy::map_entry,
