@@ -2,6 +2,7 @@
     clippy::clone_on_copy,
     clippy::enum_glob_use,
     clippy::items_after_statements,
+    clippy::let_underscore_drop,
     clippy::needless_pass_by_value
 )]
 
