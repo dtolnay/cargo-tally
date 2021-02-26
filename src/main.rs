@@ -6,6 +6,7 @@
     clippy::enum_glob_use,
     clippy::let_and_return,
     clippy::let_underscore_drop,
+    clippy::manual_map, // https://github.com/rust-lang/rust-clippy/issues/6795
     clippy::map_entry,
     clippy::needless_pass_by_value,
     clippy::needless_return,
