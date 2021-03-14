@@ -453,7 +453,7 @@ fn create_matchers(args: &Args) -> Result<Vec<Matcher>> {
             name: crate_name(pieces.next().unwrap()),
             req: match pieces.next().unwrap_or("*").parse() {
                 Ok(req) => req,
-                Err(err) => return Err(Error::ParseSeries(s.to_owned(), err)),
+                Err(err) => return Err(Error::ParseSeries(s.clone(), err)),
             },
             nodes: Vec::new(),
         });
