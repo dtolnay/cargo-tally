@@ -4,6 +4,7 @@
     clippy::default_trait_access,
     clippy::doc_markdown,
     clippy::enum_glob_use,
+    clippy::explicit_into_iter_loop,
     clippy::let_and_return,
     clippy::let_underscore_drop,
     clippy::manual_map, // https://github.com/rust-lang/rust-clippy/issues/6795
