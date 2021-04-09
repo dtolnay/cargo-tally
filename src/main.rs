@@ -1,4 +1,5 @@
 #![allow(
+    clippy::branches_sharing_code, // https://github.com/rust-lang/rust-clippy/issues/7053
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::default_trait_access,
