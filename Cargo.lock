@@ -81,7 +81,7 @@ checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
 name = "cargo-tally"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "atty",
  "chrono",
