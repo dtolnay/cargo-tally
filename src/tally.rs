@@ -176,7 +176,7 @@ impl Universe {
                 .insert(key);
         }
         self.depends
-            .insert(key, resolve.crates.keys().cloned().collect());
+            .insert(key, resolve.crates.keys().copied().collect());
     }
 
     fn compute_counts(
