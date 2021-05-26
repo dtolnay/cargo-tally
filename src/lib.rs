@@ -1,6 +1,7 @@
 use chrono::Utc;
 use fnv::FnvHashMap as Map;
 use semver::{Version, VersionReq};
+use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::fmt::{self, Display};
@@ -13,7 +14,7 @@ pub type DateTime = chrono::DateTime<Utc>;
 pub struct Crate {
     pub published: Option<DateTime>,
     pub name: String,
-    #[serde(rename = "vers")]
+    #[serde(rename = "vers", deserialize_with = "version_compat")]
     pub version: Version,
     #[serde(rename = "deps")]
     pub dependencies: Vec<Dependency>,
@@ -23,6 +24,7 @@ pub struct Crate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dependency {
     pub name: String,
+    #[serde(deserialize_with = "version_req_compat")]
     pub req: VersionReq,
     pub features: Vec<String>,
     pub optional: bool,
@@ -104,4 +106,76 @@ impl<'de> Deserialize<'de> for Feature {
             None => Feature::Current(s),
         })
     }
+}
+
+fn version_compat<'de, D>(deserializer: D) -> Result<Version, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct VersionVisitor;
+
+    impl<'de> Visitor<'de> for VersionVisitor {
+        type Value = Version;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("semver version")
+        }
+
+        fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            match Version::parse(string) {
+                Ok(version) => Ok(version),
+                Err(err) => {
+                    let corrected = match string {
+                        "0.0.1-001" => "0.0.1-1",
+                        "0.3.0-alpha.01" => "0.3.0-alpha.1",
+                        "0.4.0-alpha.00" => "0.4.0-alpha.0",
+                        "0.4.0-alpha.01" => "0.4.0-alpha.1",
+                        _ => return Err(serde::de::Error::custom(err)),
+                    };
+                    Ok(Version::parse(corrected).unwrap())
+                }
+            }
+        }
+    }
+
+    deserializer.deserialize_str(VersionVisitor)
+}
+
+fn version_req_compat<'de, D>(deserializer: D) -> Result<VersionReq, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct VersionReqVisitor;
+
+    impl<'de> Visitor<'de> for VersionReqVisitor {
+        type Value = VersionReq;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("semver version req")
+        }
+
+        fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            match VersionReq::parse(string) {
+                Ok(req) => Ok(req),
+                Err(err) => {
+                    let corrected = match string {
+                        "^0-.11.0" => "^0.11.0",
+                        "^0.1-alpha.0" => "^0.1.0-alpha.0",
+                        "^0.51-oldsyn" => "^0.51.0-oldsyn",
+                        "~2.0-2.2" => ">=2.0, <=2.2",
+                        _ => return Err(serde::de::Error::custom(err)),
+                    };
+                    Ok(VersionReq::parse(corrected).unwrap())
+                }
+            }
+        }
+    }
+
+    deserializer.deserialize_str(VersionReqVisitor)
 }
