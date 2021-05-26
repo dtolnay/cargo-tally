@@ -1,11 +1,9 @@
-use semver::ReqParseError;
-
 use std::fmt::{self, Display};
 use std::io;
 
 pub enum Error {
     MissingJson,
-    ParseSeries(String, ReqParseError),
+    ParseSeries(String, semver::Error),
     Io(io::Error),
     Json(serde_json::Error),
     Reqwest(reqwest::Error),

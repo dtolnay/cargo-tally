@@ -5,8 +5,7 @@ use fnv::{FnvHashMap as Map, FnvHashSet as Set};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use log::{debug, info};
 use regex::Regex;
-use semver::{Version, VersionReq};
-use semver_parser::range::{self, Op::Compatible, Predicate};
+use semver::{Comparator, Op, Version, VersionReq};
 
 use crate::csv::print_csv;
 use crate::debug::CrateCollection;
@@ -463,22 +462,13 @@ fn create_matchers(args: &Args) -> Result<Vec<Matcher>> {
 }
 
 fn compatible_req(version: &Version) -> VersionReq {
-    use semver::Identifier as SemverId;
-    use semver_parser::version::Identifier as ParseId;
-    VersionReq::from(range::VersionReq {
-        predicates: vec![Predicate {
-            op: Compatible,
+    VersionReq {
+        comparators: vec![Comparator {
+            op: Op::Caret,
             major: version.major,
             minor: Some(version.minor),
             patch: Some(version.patch),
-            pre: version
-                .pre
-                .iter()
-                .map(|pre| match *pre {
-                    SemverId::Numeric(n) => ParseId::Numeric(n),
-                    SemverId::AlphaNumeric(ref s) => ParseId::AlphaNumeric(s.clone()),
-                })
-                .collect(),
+            pre: version.pre.clone(),
         }],
-    })
+    }
 }
