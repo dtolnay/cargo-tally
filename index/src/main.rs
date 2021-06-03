@@ -7,6 +7,8 @@
     clippy::needless_pass_by_value
 )]
 
+#[path = "../../src/compat.rs"]
+mod compat;
 mod dir;
 mod error;
 
@@ -218,7 +220,7 @@ fn classify_commit(commit: &Commit) -> CommitType {
     if let Some(update) = UPDATE.captures(&summary) {
         let name = update[1].to_owned();
         let version = &update[2];
-        match version.parse() {
+        match compat::version(version) {
             Ok(version) => CommitType::Update(name, version),
             Err(err) => panic!("unexpected version `{}`: {}", version, err),
         }

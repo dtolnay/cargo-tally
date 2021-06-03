@@ -1,3 +1,5 @@
+mod compat;
+
 use chrono::Utc;
 use fnv::FnvHashMap as Map;
 use semver::{Version, VersionReq};
@@ -125,19 +127,7 @@ where
         where
             E: serde::de::Error,
         {
-            match Version::parse(string) {
-                Ok(version) => Ok(version),
-                Err(err) => {
-                    let corrected = match string {
-                        "0.0.1-001" => "0.0.1-1",
-                        "0.3.0-alpha.01" => "0.3.0-alpha.1",
-                        "0.4.0-alpha.00" => "0.4.0-alpha.0",
-                        "0.4.0-alpha.01" => "0.4.0-alpha.1",
-                        _ => return Err(serde::de::Error::custom(err)),
-                    };
-                    Ok(Version::parse(corrected).unwrap())
-                }
-            }
+            compat::version(string).map_err(serde::de::Error::custom)
         }
     }
 
@@ -161,19 +151,7 @@ where
         where
             E: serde::de::Error,
         {
-            match VersionReq::parse(string) {
-                Ok(req) => Ok(req),
-                Err(err) => {
-                    let corrected = match string {
-                        "^0-.11.0" => "^0.11.0",
-                        "^0.1-alpha.0" => "^0.1.0-alpha.0",
-                        "^0.51-oldsyn" => "^0.51.0-oldsyn",
-                        "~2.0-2.2" => ">=2.0, <=2.2",
-                        _ => return Err(serde::de::Error::custom(err)),
-                    };
-                    Ok(VersionReq::parse(corrected).unwrap())
-                }
-            }
+            compat::version_req(string).map_err(serde::de::Error::custom)
         }
     }
 
