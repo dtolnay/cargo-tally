@@ -217,7 +217,7 @@ fn classify_commit(commit: &Commit) -> CommitType {
         static ref UPDATE: Regex = Regex::new(r"^Updating crate `([^#]+)#([^`]+)`$").unwrap();
     }
 
-    if let Some(update) = UPDATE.captures(&summary) {
+    if let Some(update) = UPDATE.captures(summary) {
         let name = update[1].to_owned();
         let version = &update[2];
         match compat::version(version) {
