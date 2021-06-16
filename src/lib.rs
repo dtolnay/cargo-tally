@@ -51,7 +51,7 @@ use crate::version::{Version, VersionReq};
 use differential_dataflow::input::InputSession;
 use differential_dataflow::operators::arrange::{ArrangeByKey, ArrangeBySelf};
 use differential_dataflow::operators::iterate::Variable;
-use differential_dataflow::operators::{Join, JoinCore, Reduce, Threshold};
+use differential_dataflow::operators::{Consolidate, Join, JoinCore, Reduce, Threshold};
 use std::iter::once;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
@@ -391,6 +391,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             query_results
                 .distinct()
                 .map(|(_version_id, query_id)| query_id)
+                .consolidate()
                 .collect_into(&results);
         });
 
@@ -433,6 +434,12 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
         } else {
             *cell = cell.checked_sub(-diff as u32).expect("value went negative");
         }
+    }
+    if match matrix.iter().next_back() {
+        Some((_timestamp, last)) => values != **last,
+        None => values.iter().any(|&n| n != 0),
+    } {
+        matrix.push(time, values);
     }
     matrix
 }
