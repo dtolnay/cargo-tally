@@ -1,5 +1,3 @@
-**/*.rs.bk
-/graphs/
-/tally.json
-/tally.json.gz
-target/
+/*.tar.gz
+/target
+Cargo.lock

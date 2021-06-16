@@ -1,37 +1,29 @@
 [package]
 name = "cargo-tally"
-version = "0.2.17"
+version = "0.0.0"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
-license = "MIT OR Apache-2.0"
-description = "Cargo subcommand for drawing graphs of the number of direct dependencies on a crate over time"
-repository = "https://github.com/dtolnay/cargo-tally"
-categories = ["development-tools::cargo-plugins"]
-readme = "README.md"
-include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 edition = "2018"
+publish = false
+
+[lib]
+path = "src/hidden.rs"
 
 [dependencies]
+abomonation = "0.7"
 atty = "0.2"
-chrono = { version = "0.4", features = ["serde"] }
-colorous = "1.0"
-flate2 = "1.0"
-fnv = "1.0"
-gnuplot = "0.0.37"
-indicatif = "0.16"
-lazy_static = "1.0"
-log = "0.4"
-env_logger = "0.8"
-regex = "1.0"
-reqwest = { version = "0.11", features = ["blocking"] }
-semver = { version = "1.0", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-string-interner = "0.12"
-structopt = "0.3"
-url = "2.0"
-
-[workspace]
-members = ["index"]
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+anyhow = "1.0"
+bytesize = "1.0"
+chrono = "0.4"
+clap = "2.33"
+db-dump = "0.3"
+differential-dataflow = { version = "0.12", default-features = false }
+num_cpus = "1.0"
+once_cell = "1.8"
+opener = "0.5"
+ref-cast = "1.0"
+regex = "1.5"
+semver = "1.0"
+sysinfo = { version = "0.18", default-features = false }
+termcolor = "1.1"
+timely = { version = "0.12", default-features = false }
+typed-arena = "2.0"
