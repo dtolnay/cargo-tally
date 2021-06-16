@@ -111,7 +111,14 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         if results.is_empty() {
             writeln!(stderr.red(), "zero results");
         } else {
-            let path = render::graph(opt.transitive, &queries, &results, &crates, total.as_ref())?;
+            let path = render::graph(
+                opt.title.as_deref(),
+                opt.transitive,
+                &queries,
+                &results,
+                &crates,
+                total.as_ref(),
+            )?;
             if opener::open(&path).is_err() && stderr_isatty {
                 let _ = writeln!(stderr, "graph written to {}", path.display());
             }

@@ -14,6 +14,7 @@ pub(crate) struct Opt {
     pub exclude: Vec<Regex>,
     pub jobs: usize,
     pub relative: bool,
+    pub title: Option<String>,
     pub transitive: bool,
     pub queries: Vec<String>,
 }
@@ -45,6 +46,7 @@ fn app(jobs_help: &str) -> App {
         .arg(arg_exclude())
         .arg(arg_jobs(jobs_help))
         .arg(arg_relative())
+        .arg(arg_title())
         .arg(arg_transitive())
         .arg(arg_queries())
         .help_message("Print help information.")
@@ -59,6 +61,7 @@ const DB: &str = "db";
 const EXCLUDE: &str = "exclude";
 const JOBS: &str = "jobs";
 const RELATIVE: &str = "relative";
+const TITLE: &str = "title";
 const TRANSITIVE: &str = "transitive";
 const QUERIES: &str = "queries";
 
@@ -99,6 +102,8 @@ pub(crate) fn parse() -> Opt {
         .value_of(JOBS)
         .map_or(default_jobs, |jobs| jobs.parse().unwrap());
 
+    let title = matches.value_of(TITLE).map(str::to_owned);
+
     let relative = matches.is_present(RELATIVE);
     let transitive = matches.is_present(TRANSITIVE);
 
@@ -113,6 +118,7 @@ pub(crate) fn parse() -> Opt {
         exclude,
         jobs,
         relative,
+        title,
         transitive,
         queries,
     }
@@ -151,6 +157,16 @@ fn arg_relative() -> Arg {
     Arg::with_name(RELATIVE)
         .long(RELATIVE)
         .help("Display as a fraction of total crates, not absolute number")
+}
+
+fn arg_title() -> Arg {
+    Arg::with_name(TITLE)
+        .long(TITLE)
+        .hidden(true)
+        .takes_value(true)
+        .value_name("TITLE")
+        .validator_os(validate_parse::<String>)
+        .help("Graph title")
 }
 
 fn arg_transitive() -> Arg {
