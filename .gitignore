@@ -1,5 +1,0 @@
-**/*.rs.bk
-/graphs/
-/tally.json
-/tally.json.gz
-target/
