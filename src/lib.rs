@@ -435,5 +435,11 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             *cell = cell.checked_sub(-diff as u32).expect("value went negative");
         }
     }
+    if match matrix.iter().next_back() {
+        Some((_timestamp, last)) => values != **last,
+        None => values.iter().any(|&n| n != 0),
+    } {
+        matrix.push(time, values);
+    }
     matrix
 }

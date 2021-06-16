@@ -2,7 +2,7 @@ use crate::timestamp::NaiveDateTime;
 use ref_cast::RefCast;
 use std::fmt::{self, Debug};
 use std::iter::Copied;
-use std::ops::{Div, Index};
+use std::ops::{Deref, Div, Index};
 use std::slice;
 
 pub struct Matrix {
@@ -86,6 +86,14 @@ impl<'a> IntoIterator for &'a Row {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter().copied()
+    }
+}
+
+impl Deref for Row {
+    type Target = [u32];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
