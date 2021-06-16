@@ -10,6 +10,7 @@ use std::fs;
 use std::path::PathBuf;
 
 pub(crate) fn graph(
+    title: Option<&str>,
     transitive: bool,
     queries: &[Query],
     results: &Matrix,
@@ -18,7 +19,9 @@ pub(crate) fn graph(
 ) -> Result<PathBuf> {
     let now = NaiveDateTime::now();
 
-    let title = if total.is_some() {
+    let title = if let Some(title) = title {
+        title
+    } else if total.is_some() {
         if transitive {
             "fraction of crates.io depending transitively"
         } else {
