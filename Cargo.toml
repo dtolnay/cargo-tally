@@ -2,8 +2,12 @@
 name = "cargo-tally"
 version = "0.0.0"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Cargo subcommand for drawing graphs of the number of dependencies on a crate over time"
+repository = "https://github.com/dtolnay/cargo-tally"
+categories = ["development-tools::cargo-plugins"]
+readme = "README.md"
 edition = "2018"
-publish = false
 
 [lib]
 path = "src/hidden.rs"
