@@ -130,6 +130,7 @@ fn arg_db() -> Arg {
 fn arg_exclude() -> Arg {
     Arg::with_name(EXCLUDE)
         .long(EXCLUDE)
+        .hidden(true)
         .multiple(true)
         .value_name("REGEX")
         .validator_os(validate_parse::<Regex>)
