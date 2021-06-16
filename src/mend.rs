@@ -13,7 +13,7 @@ pub(crate) fn mend(db_dump: &mut DbDump, crates: &CrateMap) {
     let mut used_version_numbers = Set::new();
     for rel in &db_dump.releases {
         used_version_ids.insert(rel.id);
-        used_version_numbers.insert((rel.crate_id, rel.num));
+        used_version_numbers.insert((rel.crate_id, rel.num.clone()));
     }
 
     let mut used_dependency_ids = Set::new();
@@ -39,7 +39,7 @@ pub(crate) fn mend(db_dump: &mut DbDump, crates: &CrateMap) {
 
     let releases = &mut db_dump.releases;
     let mut push_release = |rel: Release| {
-        assert!(used_version_numbers.insert((rel.crate_id, rel.num)));
+        assert!(used_version_numbers.insert((rel.crate_id, rel.num.clone())));
         releases.push(rel);
     };
 

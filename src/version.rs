@@ -1,129 +1,41 @@
 use crate::arena::Slice;
-use semver::Op as SemverOp;
-use std::convert::TryFrom;
+use semver::{Comparator, Op};
+use std::cmp::Ordering;
 use std::fmt::{self, Debug, Display};
+use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct Version {
-    pub major: u64,
-    pub minor: u64,
-    pub patch: u64,
-}
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct Version(pub semver::Version);
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct VersionReq {
     pub comparators: Slice<Comparator>,
 }
 
 impl VersionReq {
-    pub const ANY: Self = VersionReq {
-        comparators: Slice::EMPTY,
-    };
-}
-
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct Comparator {
-    pub op: Op,
-    pub major: u64,
-    pub minor: Option<u64>,
-    pub patch: Option<u64>,
-}
-
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum Op {
-    Exact,
-    Greater,
-    GreaterEq,
-    Less,
-    LessEq,
-    Tilde,
-    Caret,
-}
-
-impl VersionReq {
     pub fn matches(&self, version: &Version) -> bool {
-        self.comparators
-            .iter()
-            .all(|comparator| comparator.matches(version))
+        matches_req(self.comparators, version)
     }
 }
 
-impl Comparator {
-    fn matches(&self, version: &Version) -> bool {
-        match self.op {
-            Op::Exact => self.matches_exact(version),
-            Op::Greater => self.matches_greater(version),
-            Op::GreaterEq => self.matches_exact(version) || self.matches_greater(version),
-            Op::Less => !self.matches_exact(version) && !self.matches_greater(version),
-            Op::LessEq => !self.matches_greater(version),
-            Op::Tilde => self.matches_tilde(version),
-            Op::Caret => self.matches_compatible(version),
-        }
+impl Deref for Version {
+    type Target = semver::Version;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
+}
 
-    fn matches_exact(&self, version: &Version) -> bool {
-        version.major == self.major
-            && self.minor.map_or(true, |minor| version.minor == minor)
-            && self.patch.map_or(true, |patch| version.patch == patch)
-    }
-
-    fn matches_greater(&self, version: &Version) -> bool {
-        if version.major != self.major {
-            return version.major > self.major;
-        }
-
-        match self.minor {
-            None => return false,
-            Some(minor) => {
-                if version.minor != minor {
-                    return version.minor > minor;
-                }
-            }
-        }
-
-        self.patch.map_or(false, |patch| version.patch > patch)
-    }
-
-    fn matches_tilde(&self, version: &Version) -> bool {
-        version.major == self.major
-            && self.minor.map_or(true, |minor| version.minor == minor)
-            && self.patch.map_or(true, |patch| version.patch >= patch)
-    }
-
-    fn matches_compatible(&self, version: &Version) -> bool {
-        if version.major != self.major {
-            return false;
-        }
-
-        let minor = match self.minor {
-            None => return true,
-            Some(minor) => minor,
-        };
-
-        match self.patch {
-            None => {
-                if self.major > 0 {
-                    version.minor >= minor
-                } else {
-                    version.minor == minor
-                }
-            }
-            Some(patch) => {
-                if self.major > 0 {
-                    version.minor > minor || (version.minor == minor && version.patch >= patch)
-                } else if minor > 0 {
-                    version.minor == minor && version.patch >= patch
-                } else {
-                    version.minor == minor && version.patch == patch
-                }
-            }
-        }
+impl DerefMut for Version {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
 impl Display for Version {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "{}.{}.{}", self.major, self.minor, self.patch)
+        Display::fmt(&self.0, formatter)
     }
 }
 
@@ -133,31 +45,73 @@ impl Debug for Version {
     }
 }
 
+impl Ord for VersionReq {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let mut lhs = self.comparators.iter_ref();
+        let mut rhs = other.comparators.iter_ref();
+
+        loop {
+            let x = match lhs.next() {
+                None => {
+                    return if rhs.next().is_none() {
+                        Ordering::Equal
+                    } else {
+                        Ordering::Less
+                    };
+                }
+                Some(val) => val,
+            };
+
+            let y = match rhs.next() {
+                None => return Ordering::Greater,
+                Some(val) => val,
+            };
+
+            match (x.op as usize, x.major, x.minor, x.patch, &x.pre).cmp(&(
+                y.op as usize,
+                y.major,
+                y.minor,
+                y.patch,
+                &y.pre,
+            )) {
+                Ordering::Equal => (),
+                non_eq => return non_eq,
+            }
+        }
+    }
+}
+
+impl PartialOrd for VersionReq {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl From<semver::VersionReq> for VersionReq {
+    fn from(req: semver::VersionReq) -> Self {
+        let comparators = Slice::new(&req.comparators);
+        VersionReq { comparators }
+    }
+}
+
+impl FromStr for VersionReq {
+    type Err = semver::Error;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        semver::VersionReq::from_str(string).map(VersionReq::from)
+    }
+}
+
 impl Display for VersionReq {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         if self.comparators.is_empty() {
             return formatter.write_str("*");
         }
-        for (i, comparator) in self.comparators.iter().enumerate() {
+        for (i, comparator) in self.comparators.iter_ref().enumerate() {
             if i > 0 {
                 formatter.write_str(", ")?;
             }
-            formatter.write_str(match comparator.op {
-                Op::Exact => "=",
-                Op::Greater => ">",
-                Op::GreaterEq => ">=",
-                Op::Less => "<",
-                Op::LessEq => "<=",
-                Op::Tilde => "~",
-                Op::Caret => "^",
-            })?;
-            Display::fmt(&comparator.major, formatter)?;
-            if let Some(minor) = comparator.minor {
-                write!(formatter, ".{}", minor)?;
-            }
-            if let Some(patch) = comparator.patch {
-                write!(formatter, ".{}", patch)?;
-            }
+            Display::fmt(&comparator, formatter)?;
         }
         Ok(())
     }
@@ -169,38 +123,177 @@ impl Debug for VersionReq {
     }
 }
 
-pub struct UnsupportedPrerelease;
-
-impl TryFrom<semver::VersionReq> for VersionReq {
-    type Error = UnsupportedPrerelease;
-
-    fn try_from(req: semver::VersionReq) -> Result<Self, Self::Error> {
-        let mut comparators = Vec::new();
-
-        for comparator in req.comparators {
-            if !comparator.pre.is_empty() {
-                return Err(UnsupportedPrerelease);
-            }
-            assert!(comparator.minor.is_some() || comparator.patch.is_none());
-            let op = match comparator.op {
-                SemverOp::Exact | SemverOp::Wildcard => Op::Exact,
-                SemverOp::Greater => Op::Greater,
-                SemverOp::GreaterEq => Op::GreaterEq,
-                SemverOp::Less => Op::Less,
-                SemverOp::LessEq => Op::LessEq,
-                SemverOp::Tilde => Op::Tilde,
-                SemverOp::Caret => Op::Caret,
-                _ => unimplemented!(),
-            };
-            comparators.push(Comparator {
-                op,
-                major: comparator.major,
-                minor: comparator.minor,
-                patch: comparator.patch,
-            });
+fn matches_req(comparators: Slice<Comparator>, ver: &Version) -> bool {
+    for cmp in comparators.iter_ref() {
+        if !matches_impl(cmp, ver) {
+            return false;
         }
-
-        let comparators = Slice::new(&comparators);
-        Ok(VersionReq { comparators })
     }
+
+    if ver.pre.is_empty() {
+        return true;
+    }
+
+    // If a version has a prerelease tag (for example, 1.2.3-alpha.3) then it
+    // will only be allowed to satisfy req if at least one comparator with the
+    // same major.minor.patch also has a prerelease tag.
+    for cmp in comparators.iter_ref() {
+        if pre_is_compatible(cmp, ver) {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn matches_impl(cmp: &Comparator, ver: &Version) -> bool {
+    match cmp.op {
+        Op::Exact | Op::Wildcard => matches_exact(cmp, ver),
+        Op::Greater => matches_greater(cmp, ver),
+        Op::GreaterEq => matches_exact(cmp, ver) || matches_greater(cmp, ver),
+        Op::Less => matches_less(cmp, ver),
+        Op::LessEq => matches_exact(cmp, ver) || matches_less(cmp, ver),
+        Op::Tilde => matches_tilde(cmp, ver),
+        Op::Caret => matches_caret(cmp, ver),
+        _ => unimplemented!(),
+    }
+}
+
+fn matches_exact(cmp: &Comparator, ver: &Version) -> bool {
+    if ver.major != cmp.major {
+        return false;
+    }
+
+    if let Some(minor) = cmp.minor {
+        if ver.minor != minor {
+            return false;
+        }
+    }
+
+    if let Some(patch) = cmp.patch {
+        if ver.patch != patch {
+            return false;
+        }
+    }
+
+    ver.pre == cmp.pre
+}
+
+fn matches_greater(cmp: &Comparator, ver: &Version) -> bool {
+    if ver.major != cmp.major {
+        return ver.major > cmp.major;
+    }
+
+    match cmp.minor {
+        None => return false,
+        Some(minor) => {
+            if ver.minor != minor {
+                return ver.minor > minor;
+            }
+        }
+    }
+
+    match cmp.patch {
+        None => return false,
+        Some(patch) => {
+            if ver.patch != patch {
+                return ver.patch > patch;
+            }
+        }
+    }
+
+    ver.pre > cmp.pre
+}
+
+fn matches_less(cmp: &Comparator, ver: &Version) -> bool {
+    if ver.major != cmp.major {
+        return ver.major < cmp.major;
+    }
+
+    match cmp.minor {
+        None => return false,
+        Some(minor) => {
+            if ver.minor != minor {
+                return ver.minor < minor;
+            }
+        }
+    }
+
+    match cmp.patch {
+        None => return false,
+        Some(patch) => {
+            if ver.patch != patch {
+                return ver.patch < patch;
+            }
+        }
+    }
+
+    ver.pre < cmp.pre
+}
+
+fn matches_tilde(cmp: &Comparator, ver: &Version) -> bool {
+    if ver.major != cmp.major {
+        return false;
+    }
+
+    if let Some(minor) = cmp.minor {
+        if ver.minor != minor {
+            return false;
+        }
+    }
+
+    if let Some(patch) = cmp.patch {
+        if ver.patch != patch {
+            return ver.patch > patch;
+        }
+    }
+
+    ver.pre >= cmp.pre
+}
+
+fn matches_caret(cmp: &Comparator, ver: &Version) -> bool {
+    if ver.major != cmp.major {
+        return false;
+    }
+
+    let minor = match cmp.minor {
+        None => return true,
+        Some(minor) => minor,
+    };
+
+    let patch = match cmp.patch {
+        None => {
+            return if cmp.major > 0 {
+                ver.minor >= minor
+            } else {
+                ver.minor == minor
+            };
+        }
+        Some(patch) => patch,
+    };
+
+    if cmp.major > 0 {
+        if ver.minor != minor {
+            return ver.minor > minor;
+        } else if ver.patch != patch {
+            return ver.patch > patch;
+        }
+    } else if minor > 0 {
+        if ver.minor != minor {
+            return false;
+        } else if ver.patch != patch {
+            return ver.patch > patch;
+        }
+    } else if ver.minor != minor || ver.patch != patch {
+        return false;
+    }
+
+    ver.pre >= cmp.pre
+}
+
+fn pre_is_compatible(cmp: &Comparator, ver: &Version) -> bool {
+    cmp.major == ver.major
+        && cmp.minor == Some(ver.minor)
+        && cmp.patch == Some(ver.patch)
+        && !cmp.pre.is_empty()
 }

@@ -67,7 +67,7 @@ pub struct DbDump {
     pub features: FeatureNames,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Release {
     pub id: VersionId,
     pub crate_id: CrateId,
@@ -135,7 +135,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                     &releases_by_crate_id,
                     |crate_id, req, (version_id, version)| {
                         req.matches(version)
-                            .then(|| ((*crate_id, *req), (*version, *version_id)))
+                            .then(|| ((*crate_id, *req), (version.clone(), *version_id)))
                     },
                 )
                 .KV::<(CrateId, VersionReq), (Version, VersionId)>()
@@ -179,13 +179,15 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                         .iter()
                         .map(move |pred| (pred.crate_id, (query.id, pred.req)))
                 })
-                .KV::<CrateId, (QueryId, VersionReq)>()
+                .KV::<CrateId, (QueryId, Option<VersionReq>)>()
                 .join_core(
                     &releases_by_crate_id,
                     |_crate_id, (query_id, version_req), (version_id, version)| {
-                        version_req
-                            .matches(version)
-                            .then(|| (*version_id, *query_id))
+                        let matches = match version_req {
+                            None => true,
+                            Some(req) => req.matches(version),
+                        };
+                        matches.then(|| (*version_id, *query_id))
                     },
                 );
 
