@@ -6,6 +6,7 @@ pub trait Log {
     fn trace(&mut self) -> LogStream;
     fn warning(&mut self) -> LogStream;
     fn error(&mut self) -> LogStream;
+    fn red(&mut self) -> LogStream;
 }
 
 impl Log for StandardStream {
@@ -30,6 +31,13 @@ impl Log for StandardStream {
         let _ = write!(self, "error:");
         let _ = self.reset();
         let _ = write!(self, " ");
+        LogStream(self)
+    }
+
+    fn red(&mut self) -> LogStream {
+        let mut color = ColorSpec::new();
+        color.set_fg(Some(Color::Red));
+        let _ = self.set_color(&color);
         LogStream(self)
     }
 }

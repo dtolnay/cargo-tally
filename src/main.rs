@@ -35,7 +35,7 @@ use std::io::{self, Write};
 use std::process;
 use std::time::Instant;
 use sysinfo::SystemExt;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use termcolor::{ColorChoice, StandardStream};
 
 fn main() {
     let mut stderr = StandardStream::stderr(ColorChoice::Auto);
@@ -50,12 +50,10 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
 
     if !opt.db.is_file() {
         write!(stderr.error(), "Database dump file does not exist: ");
-        let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red)));
-        let _ = writeln!(stderr, "{}", opt.db.display());
-        let _ = stderr.reset();
+        write!(stderr.red(), "{}", opt.db.display());
         let _ = writeln!(
             stderr,
-            "Download one from https://static.crates.io/db-dump.tar.gz",
+            "\nDownload one from https://static.crates.io/db-dump.tar.gz",
         );
         process::exit(1);
     }
@@ -109,10 +107,14 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         }
     }
 
-    if stdout_isatty && !results.is_empty() {
-        let path = render::graph(opt.transitive, &queries, &results, &crates, total.as_ref())?;
-        if opener::open(&path).is_err() && stderr_isatty {
-            let _ = writeln!(stderr, "graph written to {}", path.display());
+    if stdout_isatty {
+        if results.is_empty() {
+            writeln!(stderr.red(), "zero results");
+        } else {
+            let path = render::graph(opt.transitive, &queries, &results, &crates, total.as_ref())?;
+            if opener::open(&path).is_err() && stderr_isatty {
+                let _ = writeln!(stderr, "graph written to {}", path.display());
+            }
         }
     }
 
