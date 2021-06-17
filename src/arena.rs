@@ -20,9 +20,9 @@ where
 
     pub fn new(slice: &[T]) -> Self
     where
-        T: Send + Copy,
+        T: Send + Clone,
     {
-        slice.iter().copied().collect()
+        slice.iter().cloned().collect()
     }
 
     pub const fn from(contents: &'static [T]) -> Self {
@@ -34,6 +34,10 @@ where
         T: Copy,
     {
         (*self).into_iter()
+    }
+
+    pub fn iter_ref(&self) -> impl Iterator<Item = &'static T> {
+        self.contents.iter()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -54,7 +58,7 @@ where
 
 impl<T> FromIterator<T> for Slice<T>
 where
-    T: 'static + Send + Copy,
+    T: 'static + Send + Clone,
 {
     fn from_iter<I>(iter: I) -> Self
     where
