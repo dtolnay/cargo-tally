@@ -160,10 +160,10 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             // releases that are the most recent of their crate
             type most_recent_crate_version<'a> = stream![VersionId; isize];
             let most_recent_crate_version: most_recent_crate_version = releases
-                .map(|rel| (rel.crate_id, (rel.created_at, rel.id)))
-                .KV::<CrateId, (NaiveDateTime, VersionId)>()
+                .map(|rel| (rel.crate_id, (rel.num.pre.is_empty(), rel.created_at, rel.id)))
+                .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
                 .reduce(|_crate_id, input, output| {
-                    let ((_created_at, version_id), Present) = input.last().unwrap();
+                    let ((_not_prerelease, _created_at, version_id), Present) = input.last().unwrap();
                     output.push((*version_id, 1isize));
                 })
                 .KV::<CrateId, VersionId>()
