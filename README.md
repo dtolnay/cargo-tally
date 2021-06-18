@@ -76,7 +76,7 @@ $ cargo install cargo-tally
   *both* `anyhow` and `thiserror` counts as only one for the purpose of the
   `anyhow+thiserror` curve.
 
-  **`$ cargo tally failure anyhow thiserror anyhow+thiserror`**
+  **`$ cargo tally --relative failure anyhow thiserror anyhow+thiserror`**
 
 ![Fraction of crates.io that depends directly on various error handling libraries][failure-anyhow-thiserror]
 
