@@ -242,7 +242,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
 
                 // dependency edges from crate feature enabling other feature of same crate
                 let feature_intracrate_edges: dependency_edges = releases
-                    .flat_map(|rel| {
+                    .explode(|rel| {
                         let version_id = rel.id;
                         let crate_id = rel.crate_id;
                         rel.features
@@ -288,9 +288,8 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                                 };
                                 once((edge_from, edge_to))
                             })
-                    })
-                    .KV::<VersionFeature, VersionFeature>()
-                    .distinct();
+                            .map(|(edge_from, edge_to)| ((edge_from, edge_to), 1))
+                    });
 
                 // dependency edges from crate feature enabling feature of other crate
                 let feature_dependency_edges: dependency_edges = releases
