@@ -32,6 +32,7 @@ do_not_abomonate!(crate::id::CrateId);
 do_not_abomonate!(crate::id::DependencyId);
 do_not_abomonate!(crate::id::QueryId);
 do_not_abomonate!(crate::id::VersionId);
+do_not_abomonate!(crate::max::Max<T>);
 do_not_abomonate!(crate::present::Present);
 do_not_abomonate!(crate::query::Query);
 do_not_abomonate!(crate::timestamp::NaiveDateTime);
