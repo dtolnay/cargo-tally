@@ -4,12 +4,11 @@ use cargo_tally::dependency::DependencyKind;
 use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId, FeatureNames};
 use cargo_tally::id::{CrateId, DependencyId, VersionId};
 use cargo_tally::timestamp::NaiveDateTime;
-use cargo_tally::version::{self, Version, VersionReq};
+use cargo_tally::version::{Version, VersionReq};
 use cargo_tally::{DbDump, Dependency, Release};
 use db_dump::Result;
 use std::cell::RefCell;
 use std::collections::BTreeSet as Set;
-use std::convert::TryFrom;
 use std::iter::FromIterator;
 use std::mem;
 use std::path::Path;
@@ -27,7 +26,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             crates.insert(crate_id, row.name);
         })
         .versions(|row| {
-            if row.yanked || !row.num.pre.is_empty() {
+            if row.yanked {
                 return;
             }
             let crate_id = CrateId::from(row.crate_id);
@@ -61,11 +60,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             releases.push(Release {
                 id: VersionId::from(row.id),
                 crate_id,
-                num: Version {
-                    major: row.num.major,
-                    minor: row.num.minor,
-                    patch: row.num.patch,
-                },
+                num: Version(row.num),
                 created_at: NaiveDateTime::from(row.created_at),
                 features: {
                     release_features.push(features);
@@ -74,10 +69,6 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             });
         })
         .dependencies(|row| {
-            let req = match VersionReq::try_from(row.req) {
-                Ok(req) => req,
-                Err(version::UnsupportedPrerelease) => return,
-            };
             let feature_id = if row.optional {
                 FeatureId::TBD
             } else {
@@ -100,7 +91,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                 id: DependencyId::from(row.id),
                 version_id: VersionId::from(row.version_id),
                 crate_id: CrateId::from(row.crate_id),
-                req,
+                req: VersionReq::from(row.req),
                 feature_id,
                 default_features: DefaultFeatures(default_features),
                 features: Slice::from_iter(features),

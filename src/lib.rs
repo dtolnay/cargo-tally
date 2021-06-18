@@ -67,7 +67,7 @@ pub struct DbDump {
     pub features: FeatureNames,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Release {
     pub id: VersionId,
     pub crate_id: CrateId,
@@ -135,7 +135,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                     &releases_by_crate_id,
                     |crate_id, req, (version_id, version)| {
                         req.matches(version)
-                            .then(|| ((*crate_id, *req), (*version, *version_id)))
+                            .then(|| ((*crate_id, *req), (version.clone(), *version_id)))
                     },
                 )
                 .KV::<(CrateId, VersionReq), (Version, VersionId)>()
@@ -160,10 +160,10 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             // releases that are the most recent of their crate
             type most_recent_crate_version<'a> = stream![VersionId; isize];
             let most_recent_crate_version: most_recent_crate_version = releases
-                .map(|rel| (rel.crate_id, (rel.created_at, rel.id)))
-                .KV::<CrateId, (NaiveDateTime, VersionId)>()
+                .map(|rel| (rel.crate_id, (rel.num.pre.is_empty(), rel.created_at, rel.id)))
+                .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
                 .reduce(|_crate_id, input, output| {
-                    let ((_created_at, version_id), Present) = input.last().unwrap();
+                    let ((_not_prerelease, _created_at, version_id), Present) = input.last().unwrap();
                     output.push((*version_id, 1isize));
                 })
                 .KV::<CrateId, VersionId>()
@@ -179,13 +179,15 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                         .iter()
                         .map(move |pred| (pred.crate_id, (query.id, pred.req)))
                 })
-                .KV::<CrateId, (QueryId, VersionReq)>()
+                .KV::<CrateId, (QueryId, Option<VersionReq>)>()
                 .join_core(
                     &releases_by_crate_id,
                     |_crate_id, (query_id, version_req), (version_id, version)| {
-                        version_req
-                            .matches(version)
-                            .then(|| (*version_id, *query_id))
+                        let matches = match version_req {
+                            None => true,
+                            Some(req) => req.matches(version),
+                        };
+                        matches.then(|| (*version_id, *query_id))
                     },
                 );
 

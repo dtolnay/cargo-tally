@@ -1,7 +1,8 @@
 use cargo_tally::arena::Slice;
 use cargo_tally::cratemap::CrateMap;
-use cargo_tally::version::{Comparator, Op, Version};
+use cargo_tally::version::Version;
 use cargo_tally::DbDump;
+use semver::{Comparator, Op};
 use std::cmp;
 use std::collections::btree_map::{BTreeMap as Map, Entry};
 
@@ -19,11 +20,11 @@ pub(crate) fn clean(db_dump: &mut DbDump, crates: &CrateMap) {
     for rel in &db_dump.releases {
         match crate_max_version.entry(rel.crate_id) {
             Entry::Vacant(entry) => {
-                entry.insert(rel.num);
+                entry.insert(&rel.num);
             }
             Entry::Occupied(entry) => {
                 let entry = entry.into_mut();
-                *entry = cmp::max(*entry, rel.num);
+                *entry = cmp::max(entry, &rel.num);
             }
         }
 
@@ -54,11 +55,13 @@ pub(crate) fn clean(db_dump: &mut DbDump, crates: &CrateMap) {
                 continue;
             }
             let max_version = crate_max_version[&dep.crate_id];
-            let mut incompatible_version = Version {
+            let mut incompatible_version = Version(semver::Version {
                 major: 0,
                 minor: 0,
                 patch: 0,
-            };
+                pre: semver::Prerelease::EMPTY,
+                build: semver::BuildMetadata::EMPTY,
+            });
             // Produce a synthetic version which is semver incompatible with the
             // highest version currently published.
             if max_version.major > 0 {
@@ -78,6 +81,7 @@ pub(crate) fn clean(db_dump: &mut DbDump, crates: &CrateMap) {
                     major: max_version.major,
                     minor: Some(max_version.minor),
                     patch: Some(max_version.patch),
+                    pre: semver::Prerelease::EMPTY,
                 }]);
             }
             i += 1;

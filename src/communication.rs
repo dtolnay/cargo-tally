@@ -35,6 +35,5 @@ do_not_abomonate!(crate::id::VersionId);
 do_not_abomonate!(crate::present::Present);
 do_not_abomonate!(crate::query::Query);
 do_not_abomonate!(crate::timestamp::NaiveDateTime);
-do_not_abomonate!(crate::version::Comparator);
 do_not_abomonate!(crate::version::Version);
 do_not_abomonate!(crate::version::VersionReq);

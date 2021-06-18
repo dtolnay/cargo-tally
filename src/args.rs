@@ -1,7 +1,6 @@
 use crate::cratename;
-use cargo_tally::version::{self, VersionReq};
 use regex::Regex;
-use std::convert::TryFrom;
+use semver::VersionReq;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fmt::Display;
@@ -215,14 +214,7 @@ fn validate_query(arg: &OsStr) -> Result<(), OsString> {
         }
 
         if let Some(req) = req {
-            let req =
-                semver::VersionReq::from_str(req).map_err(|err| OsString::from(err.to_string()))?;
-            match VersionReq::try_from(req) {
-                Ok(_req) => {}
-                Err(version::UnsupportedPrerelease) => {
-                    return Err(OsString::from("prerelease requirement is not supported"));
-                }
-            }
+            VersionReq::from_str(req).map_err(|err| OsString::from(err.to_string()))?;
         }
     }
     Ok(())

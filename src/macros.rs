@@ -19,11 +19,13 @@ macro_rules! version {
             major_minor[1] == b'.',
             major_minor[2] >= b'0' && major_minor[2] <= b'9',
         }
-        cargo_tally::version::Version {
+        cargo_tally::version::Version(semver::Version {
             major: (major_minor[0] - b'0') as u64,
             minor: (major_minor[2] - b'0') as u64,
             patch: $patch,
-        }
+            pre: semver::Prerelease::EMPTY,
+            build: semver::BuildMetadata::EMPTY,
+        })
     }};
 }
 
@@ -36,13 +38,13 @@ macro_rules! version_req {
             major_minor[1] == b'.',
             major_minor[2] >= b'0' && major_minor[2] <= b'9',
         }
-        const comparators: &'static [cargo_tally::version::Comparator] =
-            &[cargo_tally::version::Comparator {
-                op: cargo_tally::version::Op::Caret,
-                major: (major_minor[0] - b'0') as u64,
-                minor: Some((major_minor[2] - b'0') as u64),
-                patch: None,
-            }];
+        const comparators: &'static [semver::Comparator] = &[semver::Comparator {
+            op: semver::Op::Caret,
+            major: (major_minor[0] - b'0') as u64,
+            minor: Some((major_minor[2] - b'0') as u64),
+            patch: None,
+            pre: semver::Prerelease::EMPTY,
+        }];
         cargo_tally::version::VersionReq {
             comparators: cargo_tally::arena::Slice::from(comparators),
         }

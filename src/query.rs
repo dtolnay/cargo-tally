@@ -1,7 +1,7 @@
 use crate::arena::Slice;
 use crate::cratemap::CrateMap;
 use crate::id::{CrateId, QueryId};
-use crate::version::{self, VersionReq};
+use crate::version::VersionReq;
 use anyhow::{bail, Result};
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
@@ -16,7 +16,7 @@ pub struct Query {
 #[derive(Copy, Clone, Debug)]
 pub struct Predicate {
     pub crate_id: CrateId,
-    pub req: VersionReq,
+    pub req: Option<VersionReq>,
 }
 
 // for example &["serde:1.0", "anyhow:^1.0 + thiserror"]
@@ -44,15 +44,10 @@ fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>>
         let predicate = predicate.trim();
 
         let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
-            let req = semver::VersionReq::from_str(req)?;
-            match VersionReq::try_from(req) {
-                Ok(req) => (name, req),
-                Err(version::UnsupportedPrerelease) => {
-                    bail!("prerelease requirement is not supported");
-                }
-            }
+            let req = VersionReq::from_str(req)?;
+            (name, Some(req))
         } else {
-            (predicate, VersionReq::ANY)
+            (predicate, None)
         };
 
         let crate_id = match crates.id_normalized(name) {
@@ -87,9 +82,9 @@ impl<'a> Display for DisplayQuery<'a> {
                 formatter.write_str(" or ")?;
             }
             formatter.write_str(self.crates.name(pred.crate_id).unwrap())?;
-            if pred.req != VersionReq::ANY {
+            if let Some(req) = pred.req {
                 formatter.write_str(":")?;
-                write!(formatter, "{}", pred.req)?;
+                write!(formatter, "{}", req)?;
             }
         }
         Ok(())
