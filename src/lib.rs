@@ -354,14 +354,12 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                     .iterative::<u16, _, _>(|nested| {
                         let match_releases = match_releases
                             .KV::<VersionId, QueryId>()
-                            .distinct()
-                            .KV::<VersionId, QueryId>()
-                            .map(|(version_id, query_id)| {
+                            .explode(|(version_id, query_id)| {
                                 let version_feature = VersionFeature {
                                     version_id,
                                     feature_id: FeatureId::CRATE,
                                 };
-                                (version_feature, query_id)
+                                once(((version_feature, query_id), 1))
                             })
                             .KV::<VersionFeature, QueryId>()
                             .enter(nested);
