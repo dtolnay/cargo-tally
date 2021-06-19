@@ -54,6 +54,12 @@ impl Display for User {
 #[repr(transparent)]
 pub(crate) struct UserQuery(str);
 
+impl UserQuery {
+    pub(crate) fn is_team(&self) -> bool {
+        self.0.contains('/')
+    }
+}
+
 impl Borrow<UserQuery> for User {
     fn borrow(&self) -> &UserQuery {
         UserQuery::ref_cast(&self.0)

@@ -1,7 +1,7 @@
 use crate::cratename::{CrateName, CrateNameQuery};
 use crate::user::User;
 use cargo_tally::id::CrateId;
-use db_dump::users::UserId;
+use db_dump::crate_owners::OwnerId;
 use ref_cast::RefCast;
 use std::collections::BTreeMap as Map;
 
@@ -9,8 +9,8 @@ use std::collections::BTreeMap as Map;
 pub struct CrateMap {
     names: Map<CrateId, String>,
     ids: Map<CrateName, CrateId>,
-    pub(crate) users: Map<User, UserId>,
-    pub(crate) owners: Map<UserId, Vec<CrateId>>,
+    pub(crate) users: Map<User, OwnerId>,
+    pub(crate) owners: Map<OwnerId, Vec<CrateId>>,
 }
 
 impl CrateMap {

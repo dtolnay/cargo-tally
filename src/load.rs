@@ -18,6 +18,7 @@ use std::path::Path;
 pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut crates = CrateMap::new();
     let mut users = Map::new();
+    let mut teams = Map::new();
     let mut owners = Map::new();
     let mut releases = Vec::new();
     let mut dependencies = Vec::new();
@@ -30,15 +31,21 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             crates.insert(crate_id, row.name);
         })
         .users(|row| {
-            users.insert(User::new(row.gh_login), row.id);
+            users.insert(User::new(row.gh_login), OwnerId::User(row.id));
+        })
+        .teams(|row| {
+            if let Some(team) = row.login.strip_prefix("github:") {
+                if team.contains(':') {
+                    let team = team.replace(':', "/");
+                    teams.insert(User::new(team), OwnerId::Team(row.id));
+                }
+            }
         })
         .crate_owners(|row| {
-            if let OwnerId::User(user_id) = row.owner_id {
-                owners
-                    .entry(user_id)
-                    .or_insert_with(Vec::new)
-                    .push(CrateId::from(row.crate_id));
-            }
+            owners
+                .entry(row.owner_id)
+                .or_insert_with(Vec::new)
+                .push(CrateId::from(row.crate_id));
         })
         .versions(|row| {
             if row.yanked {
@@ -156,8 +163,9 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
         features: feature_names,
     };
 
-    crates.users = users;
     crates.owners = owners;
+    crates.users = users;
+    crates.users.extend(teams);
 
     Ok((db_dump, crates))
 }
