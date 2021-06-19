@@ -84,8 +84,13 @@ impl<'a> Display for Row<'a> {
         Display::fmt(&self.0.millis(), formatter)?;
         formatter.write_str(", \"edges\":")?;
         if let Some(total) = self.2 {
-            let fraction = self.1 as f32 / total.eval(self.0) as f32;
-            write_truncated(formatter, fraction)?;
+            let total = total.eval(self.0);
+            if total == 0 {
+                formatter.write_str("0")?;
+            } else {
+                let fraction = self.1 as f32 / total as f32;
+                write_truncated(formatter, fraction)?;
+            }
         } else {
             Display::fmt(&self.1, formatter)?;
         }
