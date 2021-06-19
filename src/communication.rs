@@ -22,6 +22,7 @@ macro_rules! do_not_abomonate {
 }
 
 do_not_abomonate!(crate::Dependency);
+do_not_abomonate!(crate::Query);
 do_not_abomonate!(crate::Release);
 do_not_abomonate!(crate::arena::Slice<T> where T: 'static);
 do_not_abomonate!(crate::feature::CrateFeature);
@@ -34,7 +35,6 @@ do_not_abomonate!(crate::id::QueryId);
 do_not_abomonate!(crate::id::VersionId);
 do_not_abomonate!(crate::max::Max<T>);
 do_not_abomonate!(crate::present::Present);
-do_not_abomonate!(crate::query::Query);
 do_not_abomonate!(crate::timestamp::NaiveDateTime);
 do_not_abomonate!(crate::version::Version);
 do_not_abomonate!(crate::version::VersionReq);

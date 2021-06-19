@@ -23,7 +23,6 @@ mod stream;
 pub mod arena;
 pub(crate) mod collect;
 mod communication;
-pub mod cratemap;
 pub mod dependency;
 pub mod feature;
 pub(crate) mod hint;
@@ -32,7 +31,6 @@ mod impls;
 pub mod matrix;
 pub(crate) mod max;
 pub(crate) mod present;
-pub mod query;
 pub mod timestamp;
 pub mod version;
 
@@ -47,7 +45,6 @@ use crate::id::{CrateId, DependencyId, QueryId, VersionId};
 use crate::matrix::Matrix;
 use crate::max::MaxByKey;
 use crate::present::Present;
-use crate::query::Query;
 use crate::timestamp::{Duration, NaiveDateTime};
 use crate::version::{Version, VersionReq};
 use differential_dataflow::input::InputSession;
@@ -88,6 +85,18 @@ pub struct Dependency {
     pub default_features: DefaultFeatures,
     pub features: Slice<FeatureId>,
     pub kind: DependencyKind,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Query {
+    pub id: QueryId,
+    pub predicates: Slice<Predicate>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Predicate {
+    pub crate_id: CrateId,
+    pub req: Option<VersionReq>,
 }
 
 struct Input {

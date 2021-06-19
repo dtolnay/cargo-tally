@@ -1,5 +1,5 @@
+use crate::cratemap::CrateMap;
 use cargo_tally::arena::Slice;
-use cargo_tally::cratemap::CrateMap;
 use cargo_tally::version::Version;
 use cargo_tally::DbDump;
 use semver::{Comparator, Op};

@@ -1,4 +1,4 @@
-use cargo_tally::cratemap::CrateMap;
+use crate::cratemap::CrateMap;
 use cargo_tally::DbDump;
 use regex::Regex;
 

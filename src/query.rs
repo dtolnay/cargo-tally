@@ -1,23 +1,12 @@
-use crate::arena::Slice;
 use crate::cratemap::CrateMap;
-use crate::id::{CrateId, QueryId};
-use crate::version::VersionReq;
 use anyhow::{bail, Result};
+use cargo_tally::arena::Slice;
+use cargo_tally::id::QueryId;
+use cargo_tally::version::VersionReq;
+use cargo_tally::{Predicate, Query};
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::str::FromStr;
-
-#[derive(Copy, Clone, Debug)]
-pub struct Query {
-    pub id: QueryId,
-    pub predicates: Slice<Predicate>,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Predicate {
-    pub crate_id: CrateId,
-    pub req: Option<VersionReq>,
-}
 
 // for example &["serde:1.0", "anyhow:^1.0 + thiserror"]
 pub fn parse<'a>(
@@ -61,13 +50,8 @@ fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>>
     Ok(Slice::new(&predicates))
 }
 
-impl Query {
-    pub fn display<'a>(&'a self, crates: &'a CrateMap) -> DisplayQuery<'a> {
-        DisplayQuery {
-            query: self,
-            crates,
-        }
-    }
+pub fn display<'a>(query: &'a Query, crates: &'a CrateMap) -> DisplayQuery<'a> {
+    DisplayQuery { query, crates }
 }
 
 pub struct DisplayQuery<'a> {

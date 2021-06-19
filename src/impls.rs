@@ -1,5 +1,4 @@
-use crate::query::Query;
-use crate::{Dependency, Release};
+use crate::{Dependency, Query, Release};
 use std::cmp::Ordering;
 
 impl Ord for Query {
