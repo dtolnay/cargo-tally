@@ -45,7 +45,7 @@ use crate::feature::{
 use crate::hint::TypeHint;
 use crate::id::{CrateId, DependencyId, QueryId, VersionId};
 use crate::matrix::Matrix;
-use crate::max::Max;
+use crate::max::MaxByKey;
 use crate::present::Present;
 use crate::query::Query;
 use crate::timestamp::{Duration, NaiveDateTime};
@@ -53,7 +53,7 @@ use crate::version::{Version, VersionReq};
 use differential_dataflow::input::InputSession;
 use differential_dataflow::operators::arrange::{ArrangeByKey, ArrangeBySelf};
 use differential_dataflow::operators::iterate::Variable;
-use differential_dataflow::operators::{Consolidate, CountTotal, Join, JoinCore, Threshold};
+use differential_dataflow::operators::{Consolidate, Join, JoinCore, Threshold};
 use std::iter::once;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
@@ -141,16 +141,9 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                     },
                 )
                 .KV::<(CrateId, VersionReq), (Version, VersionId)>()
-                .explode(|((crate_id, req), (version, version_id))| {
-                    once(((crate_id, req), Max::new((version, version_id))))
-                })
-                .T::<(CrateId, VersionReq)>()
-                .count_total()
-                .T::<((CrateId, VersionReq), Max<(Version, VersionId)>)>()
-                .map(|((crate_id, req), max)| {
-                    let (_version, version_id) = max.value;
-                    ((crate_id, req), version_id)
-                });
+                .max_by_key()
+                .KV::<(CrateId, VersionReq), (Version, VersionId)>()
+                .map(|((crate_id, req), (_version, version_id))| ((crate_id, req), version_id));
             let resolved = resolved.arrange_by_key();
 
             // full dependency graph across all versions of all crates
@@ -170,16 +163,9 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             let most_recent_crate_version: most_recent_crate_version = releases
                 .map(|rel| (rel.crate_id, (rel.num.pre.is_empty(), rel.created_at, rel.id)))
                 .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
-                .explode(|(crate_id, (not_prerelease, created_at, version_id))| {
-                    once((crate_id, Max::new((not_prerelease, created_at, version_id))))
-                })
-                .T::<CrateId>()
-                .count_total()
-                .T::<(CrateId, Max<(bool, NaiveDateTime, VersionId)>)>()
-                .map(|(_crate_id, max)| {
-                    let (_not_prerelease, _created_at, version_id) = max.value;
-                    version_id
-                });
+                .max_by_key()
+                .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
+                .map(|(_crate_id, (_not_prerelease, _created_at, version_id))| version_id);
             let most_recent_crate_version = most_recent_crate_version.arrange_by_self();
 
             // releases that satisfy the predicate of each query
