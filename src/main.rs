@@ -7,6 +7,7 @@
     clippy::manual_range_contains,
     clippy::module_name_repetitions,
     clippy::redundant_else,
+    clippy::single_match_else,
     clippy::too_many_lines,
     clippy::zero_prefixed_literal
 )]

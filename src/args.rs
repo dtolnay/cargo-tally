@@ -204,7 +204,7 @@ fn validate_query(arg: &OsStr) -> Result<(), OsString> {
         let predicate = predicate.trim();
 
         if let Some(username) = predicate.strip_prefix('@') {
-            if user::valid(username) {
+            if username.split('/').all(user::valid) {
                 continue;
             } else {
                 return Err(OsString::from("invalid crates.io username"));

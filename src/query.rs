@@ -38,7 +38,10 @@ fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>>
             RawPredicate::User(username) => {
                 let user_id = match crates.users.get(username) {
                     Some(user_id) => user_id,
-                    None => bail!("no crates owned by user @{}", username),
+                    None => {
+                        let kind = if username.is_team() { "team" } else { "user" };
+                        bail!("no crates owned by {} @{}", kind, username);
+                    }
                 };
                 predicates.extend(
                     crates
