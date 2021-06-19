@@ -1,4 +1,5 @@
 use crate::cratemap::CrateMap;
+use crate::user::User;
 use cargo_tally::arena::Slice;
 use cargo_tally::dependency::DependencyKind;
 use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId, FeatureNames};
@@ -6,15 +7,18 @@ use cargo_tally::id::{CrateId, DependencyId, VersionId};
 use cargo_tally::timestamp::NaiveDateTime;
 use cargo_tally::version::{Version, VersionReq};
 use cargo_tally::{DbDump, Dependency, Release};
+use db_dump::crate_owners::OwnerId;
 use db_dump::Result;
 use std::cell::RefCell;
-use std::collections::BTreeSet as Set;
+use std::collections::{BTreeMap as Map, BTreeSet as Set};
 use std::iter::FromIterator;
 use std::mem;
 use std::path::Path;
 
 pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut crates = CrateMap::new();
+    let mut users = Map::new();
+    let mut owners = Map::new();
     let mut releases = Vec::new();
     let mut dependencies = Vec::new();
     let mut release_features = Vec::new();
@@ -24,6 +28,17 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
         .crates(|row| {
             let crate_id = CrateId::from(row.id);
             crates.insert(crate_id, row.name);
+        })
+        .users(|row| {
+            users.insert(User::new(row.gh_login), row.id);
+        })
+        .crate_owners(|row| {
+            if let OwnerId::User(user_id) = row.owner_id {
+                owners
+                    .entry(user_id)
+                    .or_insert_with(Vec::new)
+                    .push(CrateId::from(row.crate_id));
+            }
         })
         .versions(|row| {
             if row.yanked {
@@ -140,5 +155,9 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
         dependencies,
         features: feature_names,
     };
+
+    crates.users = users;
+    crates.owners = owners;
+
     Ok((db_dump, crates))
 }

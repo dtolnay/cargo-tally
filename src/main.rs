@@ -6,6 +6,7 @@
     clippy::let_underscore_drop,
     clippy::manual_range_contains,
     clippy::module_name_repetitions,
+    clippy::redundant_else,
     clippy::too_many_lines,
     clippy::zero_prefixed_literal
 )]
@@ -26,6 +27,7 @@ mod query;
 mod render;
 mod total;
 mod trace;
+mod user;
 
 use crate::load::load;
 use crate::log::Log;
