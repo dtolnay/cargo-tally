@@ -101,8 +101,12 @@ impl<'a> Display for Row<'a> {
 
 fn write_truncated(formatter: &mut fmt::Formatter, fraction: f32) -> fmt::Result {
     let mut repr = fraction.to_string();
-    if let Some(first_nonzero) = repr.find(|ch| ch >= '1' && ch <= '9') {
+    let nonzero_digit = |ch: char| ch >= '1' && ch <= '9';
+    if let Some(first_nonzero) = repr.find(nonzero_digit) {
         repr.truncate(first_nonzero + 3);
+    }
+    if let Some(last_nonzero) = repr.rfind(nonzero_digit) {
+        repr.truncate(last_nonzero + 1);
     }
     formatter.write_str(&repr)
 }
