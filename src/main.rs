@@ -118,9 +118,10 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         if results.is_empty() {
             writeln!(stderr.red(), "zero results");
         } else {
-            let labels = queries
+            let labels = opt
+                .queries
                 .iter()
-                .map(|query| query::display(query, &crates).to_string())
+                .map(|query| query::format(query, &crates))
                 .collect::<Vec<_>>();
             let path = render::graph(
                 opt.title.as_deref(),

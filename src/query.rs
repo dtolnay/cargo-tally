@@ -50,23 +50,36 @@ fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>>
     Ok(Slice::new(&predicates))
 }
 
-pub fn display<'a>(query: &'a Query, crates: &'a CrateMap) -> DisplayQuery<'a> {
-    DisplayQuery { query, crates }
+pub fn format(query: &str, crates: &CrateMap) -> String {
+    DisplayQuery { query, crates }.to_string()
 }
 
-pub struct DisplayQuery<'a> {
-    query: &'a Query,
+struct DisplayQuery<'a> {
+    query: &'a str,
     crates: &'a CrateMap,
 }
 
 impl<'a> Display for DisplayQuery<'a> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        for (i, pred) in self.query.predicates.iter().enumerate() {
+        for (i, predicate) in self.query.split('+').enumerate() {
             if i > 0 {
                 formatter.write_str(" or ")?;
             }
-            formatter.write_str(self.crates.name(pred.crate_id).unwrap())?;
-            if let Some(req) = pred.req {
+
+            let predicate = predicate.trim();
+
+            let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
+                let req = VersionReq::from_str(req).unwrap();
+                (name, Some(req))
+            } else {
+                (predicate, None)
+            };
+
+            let crate_id = self.crates.id_normalized(name).unwrap();
+            let original_name = self.crates.name(crate_id).unwrap();
+            formatter.write_str(original_name)?;
+
+            if let Some(req) = req {
                 formatter.write_str(":")?;
                 write!(formatter, "{}", req)?;
             }
