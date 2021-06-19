@@ -340,7 +340,11 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                 let incoming_transitive_dependency_edges = dep_dependency_edges
                     .concat(&feature_intracrate_edges)
                     .concat(&feature_dependency_edges)
-                    .map(|(edge_from, edge_to)| (edge_to, edge_from))
+                    .KV::<VersionFeature, VersionFeature>()
+                    .map_in_place(|edge| {
+                        let (edge_from, edge_to) = *edge;
+                        *edge = (edge_to, edge_from);
+                    })
                     .KV::<VersionFeature, VersionFeature>()
                     .arrange_by_key();
 
