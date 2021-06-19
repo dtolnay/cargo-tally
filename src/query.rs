@@ -89,7 +89,7 @@ impl<'a> Iterator for IterPredicates<'a> {
             (predicate, None)
         };
 
-        let crate_id = match self.crates.id_normalized(name) {
+        let crate_id = match self.crates.id(name) {
             Some(crate_id) => crate_id,
             None => return Some(Err(format_err!("no crate named {}", name))),
         };

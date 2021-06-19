@@ -1,12 +1,12 @@
+use crate::cratename::{CrateName, CrateNameQuery};
 use cargo_tally::id::CrateId;
-use std::borrow::Borrow;
+use ref_cast::RefCast;
 use std::collections::BTreeMap as Map;
 
 #[derive(Default)]
 pub struct CrateMap {
     names: Map<CrateId, String>,
-    ids: Map<String, CrateId>,
-    normalized: Map<String, CrateId>,
+    ids: Map<CrateName, CrateId>,
 }
 
 impl CrateMap {
@@ -15,10 +15,9 @@ impl CrateMap {
     }
 
     pub fn insert(&mut self, id: CrateId, name: String) {
-        assert!(!self.ids.contains_key(&name));
+        assert!(!self.ids.contains_key(CrateNameQuery::ref_cast(&name)));
         assert!(!self.names.contains_key(&id));
-        self.ids.insert(name.clone(), id);
-        self.normalized.insert(normalize(&name), id);
+        self.ids.insert(CrateName::new(name.clone()), id);
         self.names.insert(id, name);
     }
 
@@ -26,20 +25,7 @@ impl CrateMap {
         self.names.get(&id).map(String::as_str)
     }
 
-    pub fn id<Q>(&self, name: &Q) -> Option<CrateId>
-    where
-        String: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.ids.get(name).copied()
+    pub fn id(&self, name: &str) -> Option<CrateId> {
+        self.ids.get(CrateNameQuery::ref_cast(name)).copied()
     }
-
-    pub fn id_normalized(&self, fuzzy_name: &str) -> Option<CrateId> {
-        let name = normalize(fuzzy_name);
-        self.normalized.get(&name).copied()
-    }
-}
-
-fn normalize(name: &str) -> String {
-    name.replace('_', "-")
 }
