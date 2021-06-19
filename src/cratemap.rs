@@ -1,4 +1,4 @@
-use crate::id::CrateId;
+use cargo_tally::id::CrateId;
 use std::borrow::Borrow;
 use std::collections::BTreeMap as Map;
 

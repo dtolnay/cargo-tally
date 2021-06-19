@@ -16,11 +16,13 @@ mod macros;
 mod alloc;
 mod args;
 mod clean;
+mod cratemap;
 mod cratename;
 mod filter;
 mod load;
 mod log;
 mod mend;
+mod query;
 mod render;
 mod total;
 mod trace;
@@ -30,7 +32,6 @@ use crate::log::Log;
 use crate::total::Total;
 use anyhow::Result;
 use atty::Stream;
-use cargo_tally::query;
 use std::io::{self, Write};
 use std::process;
 use std::time::Instant;
@@ -117,12 +118,16 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         if results.is_empty() {
             writeln!(stderr.red(), "zero results");
         } else {
+            let labels = opt
+                .queries
+                .iter()
+                .map(|query| query::format(query, &crates))
+                .collect::<Vec<_>>();
             let path = render::graph(
                 opt.title.as_deref(),
                 opt.transitive,
-                &queries,
                 &results,
-                &crates,
+                &labels,
                 total.as_ref(),
             )?;
             if opener::open(&path).is_err() && stderr_isatty {

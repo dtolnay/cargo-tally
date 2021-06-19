@@ -1,23 +1,12 @@
-use crate::arena::Slice;
 use crate::cratemap::CrateMap;
-use crate::id::{CrateId, QueryId};
-use crate::version::VersionReq;
-use anyhow::{bail, Result};
+use anyhow::{bail, format_err, Error, Result};
+use cargo_tally::arena::Slice;
+use cargo_tally::id::QueryId;
+use cargo_tally::version::VersionReq;
+use cargo_tally::{Predicate, Query};
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
-use std::str::FromStr;
-
-#[derive(Copy, Clone, Debug)]
-pub struct Query {
-    pub id: QueryId,
-    pub predicates: Slice<Predicate>,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Predicate {
-    pub crate_id: CrateId,
-    pub req: Option<VersionReq>,
-}
+use std::str::{FromStr, Split};
 
 // for example &["serde:1.0", "anyhow:^1.0 + thiserror"]
 pub fn parse<'a>(
@@ -38,55 +27,73 @@ pub fn parse<'a>(
 }
 
 fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>> {
-    let mut predicates = Vec::new();
-
-    for predicate in string.split('+') {
-        let predicate = predicate.trim();
-
-        let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
-            let req = VersionReq::from_str(req)?;
-            (name, Some(req))
-        } else {
-            (predicate, None)
-        };
-
-        let crate_id = match crates.id_normalized(name) {
-            Some(crate_id) => crate_id,
-            None => bail!("no crate named {}", name),
-        };
-
-        predicates.push(Predicate { crate_id, req });
-    }
-
+    let predicates = IterPredicates::new(string, crates).collect::<Result<Vec<Predicate>>>()?;
     Ok(Slice::new(&predicates))
 }
 
-impl Query {
-    pub fn display<'a>(&'a self, crates: &'a CrateMap) -> DisplayQuery<'a> {
-        DisplayQuery {
-            query: self,
-            crates,
-        }
-    }
+pub fn format(query: &str, crates: &CrateMap) -> String {
+    DisplayQuery { query, crates }.to_string()
 }
 
-pub struct DisplayQuery<'a> {
-    query: &'a Query,
+struct DisplayQuery<'a> {
+    query: &'a str,
     crates: &'a CrateMap,
 }
 
 impl<'a> Display for DisplayQuery<'a> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        for (i, pred) in self.query.predicates.iter().enumerate() {
+        for (i, predicate) in IterPredicates::new(self.query, self.crates).enumerate() {
             if i > 0 {
                 formatter.write_str(" or ")?;
             }
-            formatter.write_str(self.crates.name(pred.crate_id).unwrap())?;
-            if let Some(req) = pred.req {
+
+            let predicate = predicate.unwrap();
+            let original_name = self.crates.name(predicate.crate_id).unwrap();
+            formatter.write_str(original_name)?;
+
+            if let Some(req) = predicate.req {
                 formatter.write_str(":")?;
                 write!(formatter, "{}", req)?;
             }
         }
         Ok(())
+    }
+}
+
+struct IterPredicates<'a> {
+    split: Split<'a, char>,
+    crates: &'a CrateMap,
+}
+
+impl<'a> IterPredicates<'a> {
+    fn new(query: &'a str, crates: &'a CrateMap) -> Self {
+        IterPredicates {
+            split: query.split('+'),
+            crates,
+        }
+    }
+}
+
+impl<'a> Iterator for IterPredicates<'a> {
+    type Item = Result<Predicate>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let predicate = self.split.next()?.trim();
+
+        let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
+            match VersionReq::from_str(req) {
+                Ok(req) => (name, Some(req)),
+                Err(err) => return Some(Err(Error::new(err))),
+            }
+        } else {
+            (predicate, None)
+        };
+
+        let crate_id = match self.crates.id_normalized(name) {
+            Some(crate_id) => crate_id,
+            None => return Some(Err(format_err!("no crate named {}", name))),
+        };
+
+        Some(Ok(Predicate { crate_id, req }))
     }
 }

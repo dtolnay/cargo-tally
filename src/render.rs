@@ -1,8 +1,6 @@
 use crate::total::Total;
 use anyhow::Result;
-use cargo_tally::cratemap::CrateMap;
 use cargo_tally::matrix::Matrix;
-use cargo_tally::query::Query;
 use cargo_tally::timestamp::NaiveDateTime;
 use std::env;
 use std::fmt::{self, Display};
@@ -12,9 +10,8 @@ use std::path::PathBuf;
 pub(crate) fn graph(
     title: Option<&str>,
     transitive: bool,
-    queries: &[Query],
     results: &Matrix,
-    crates: &CrateMap,
+    labels: &[String],
     total: Option<&Total>,
 ) -> Result<PathBuf> {
     let now = NaiveDateTime::now();
@@ -37,9 +34,9 @@ pub(crate) fn graph(
 
     let mut data = String::new();
     data += "var data = [\n";
-    for (i, query) in queries.iter().enumerate() {
+    for (i, label) in labels.iter().enumerate() {
         data += "      {\"name\":\"";
-        data += &query.display(crates).to_string();
+        data += label;
         data += "\", \"values\":[\n";
         let mut prev = None;
         for (timestamp, row) in results {

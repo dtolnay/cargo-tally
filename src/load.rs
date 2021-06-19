@@ -1,5 +1,5 @@
+use crate::cratemap::CrateMap;
 use cargo_tally::arena::Slice;
-use cargo_tally::cratemap::CrateMap;
 use cargo_tally::dependency::DependencyKind;
 use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId, FeatureNames};
 use cargo_tally::id::{CrateId, DependencyId, VersionId};
