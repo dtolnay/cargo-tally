@@ -1,9 +1,11 @@
 use crate::cratemap::CrateMap;
+use crate::user::UserQuery;
 use anyhow::{bail, format_err, Error, Result};
 use cargo_tally::arena::Slice;
 use cargo_tally::id::QueryId;
 use cargo_tally::version::VersionReq;
 use cargo_tally::{Predicate, Query};
+use ref_cast::RefCast;
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::str::{FromStr, Split};
@@ -27,7 +29,33 @@ pub fn parse<'a>(
 }
 
 fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>> {
-    let predicates = IterPredicates::new(string, crates).collect::<Result<Vec<Predicate>>>()?;
+    let mut predicates = Vec::new();
+
+    for predicate in IterPredicates::new(string, crates) {
+        let predicate = predicate?;
+        match predicate {
+            RawPredicate::Crate(predicate) => predicates.push(predicate),
+            RawPredicate::User(username) => {
+                let user_id = match crates.users.get(username) {
+                    Some(user_id) => user_id,
+                    None => bail!("no crates owned by user @{}", username),
+                };
+                predicates.extend(
+                    crates
+                        .owners
+                        .get(user_id)
+                        .map(Vec::as_slice)
+                        .unwrap_or_default()
+                        .iter()
+                        .map(|&crate_id| Predicate {
+                            crate_id,
+                            req: None,
+                        }),
+                );
+            }
+        }
+    }
+
     Ok(Slice::new(&predicates))
 }
 
@@ -48,16 +76,27 @@ impl<'a> Display for DisplayQuery<'a> {
             }
 
             let predicate = predicate.unwrap();
-            let original_name = self.crates.name(predicate.crate_id).unwrap();
-            formatter.write_str(original_name)?;
-
-            if let Some(req) = predicate.req {
-                formatter.write_str(":")?;
-                write!(formatter, "{}", req)?;
+            match predicate {
+                RawPredicate::Crate(predicate) => {
+                    let original_name = self.crates.name(predicate.crate_id).unwrap();
+                    formatter.write_str(original_name)?;
+                    if let Some(req) = predicate.req {
+                        write!(formatter, ":{}", req)?;
+                    }
+                }
+                RawPredicate::User(username) => {
+                    let (username, _user_id) = self.crates.users.get_key_value(username).unwrap();
+                    write!(formatter, "@{}", username)?;
+                }
             }
         }
         Ok(())
     }
+}
+
+enum RawPredicate<'a> {
+    Crate(Predicate),
+    User(&'a UserQuery),
 }
 
 struct IterPredicates<'a> {
@@ -75,10 +114,14 @@ impl<'a> IterPredicates<'a> {
 }
 
 impl<'a> Iterator for IterPredicates<'a> {
-    type Item = Result<Predicate>;
+    type Item = Result<RawPredicate<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let predicate = self.split.next()?.trim();
+
+        if let Some(username) = predicate.strip_prefix('@') {
+            return Some(Ok(RawPredicate::User(UserQuery::ref_cast(username))));
+        }
 
         let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
             match VersionReq::from_str(req) {
@@ -94,6 +137,6 @@ impl<'a> Iterator for IterPredicates<'a> {
             None => return Some(Err(format_err!("no crate named {}", name))),
         };
 
-        Some(Ok(Predicate { crate_id, req }))
+        Some(Ok(RawPredicate::Crate(Predicate { crate_id, req })))
     }
 }

@@ -1,4 +1,4 @@
-use crate::cratename;
+use crate::{cratename, user};
 use regex::Regex;
 use semver::VersionReq;
 use std::env;
@@ -202,6 +202,14 @@ where
 fn validate_query(arg: &OsStr) -> Result<(), OsString> {
     for predicate in validate_utf8(arg)?.split('+') {
         let predicate = predicate.trim();
+
+        if let Some(username) = predicate.strip_prefix('@') {
+            if user::valid(username) {
+                continue;
+            } else {
+                return Err(OsString::from("invalid crates.io username"));
+            }
+        }
 
         let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
             (name, Some(req))
