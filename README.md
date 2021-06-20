@@ -95,6 +95,18 @@ $ cargo install cargo-tally
 [failure-anyhow-thiserror]: https://user-images.githubusercontent.com/1940490/122184103-bf70c680-ce40-11eb-890c-988cd96f4428.png
 [libc]: https://user-images.githubusercontent.com/1940490/122184112-c13a8a00-ce40-11eb-8bdb-a7f6f03d2d91.png
 
+---
+
+<br>
+
+## Credits
+
+The implementation is powered by [differential-dataflow].
+
+<img src="https://raw.github.com/dtolnay/cargo-tally/72612d2290b0ab564fdc6e332bb69f556e1bb41b/ddshow.svg">
+
+[differential-dataflow]: https://github.com/TimelyDataflow/differential-dataflow
+
 <br>
 
 #### License
