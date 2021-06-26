@@ -100,6 +100,7 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         writeln!(stderr.trace(), "dataflow time: {:.2?}", instant.elapsed());
     }
 
+    let _ = stderr.flush();
     let len = results.len();
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
@@ -116,6 +117,7 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
             }
         }
     }
+    let _ = stdout.flush();
 
     if stdout_isatty {
         if results.is_empty() {
