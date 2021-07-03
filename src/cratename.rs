@@ -89,10 +89,9 @@ struct SeparatorAgnosticByte(u8);
 
 impl Ord for SeparatorAgnosticByte {
     fn cmp(&self, rhs: &Self) -> Ordering {
-        match (self.0, rhs.0) {
-            (b'-', b'_') | (b'_', b'-') => Ordering::Equal,
-            (lhs, rhs) => lhs.cmp(&rhs),
-        }
+        let lhs = if self.0 == b'_' { b'-' } else { self.0 };
+        let rhs = if rhs.0 == b'_' { b'-' } else { rhs.0 };
+        lhs.cmp(&rhs)
     }
 }
 
