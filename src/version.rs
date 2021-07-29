@@ -111,7 +111,7 @@ impl Display for VersionReq {
             if i > 0 {
                 formatter.write_str(", ")?;
             }
-            Display::fmt(&comparator, formatter)?;
+            write!(formatter, "{}", comparator)?;
         }
         Ok(())
     }

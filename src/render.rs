@@ -81,7 +81,7 @@ struct Row<'a>(NaiveDateTime, u32, Option<&'a Total>);
 impl<'a> Display for Row<'a> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("        {\"time\":")?;
-        Display::fmt(&self.0.millis(), formatter)?;
+        write!(formatter, "{}", self.0.millis())?;
         formatter.write_str(", \"edges\":")?;
         if let Some(total) = self.2 {
             let total = total.eval(self.0);
@@ -92,7 +92,7 @@ impl<'a> Display for Row<'a> {
                 write_truncated(formatter, fraction)?;
             }
         } else {
-            Display::fmt(&self.1, formatter)?;
+            write!(formatter, "{}", self.1)?;
         }
         formatter.write_str("},\n")?;
         Ok(())
