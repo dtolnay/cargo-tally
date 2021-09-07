@@ -65,9 +65,17 @@ pub(crate) fn graph(
     }
     data += "    ];";
 
-    let html = include_str!("index.html")
+    let mut html = include_str!("index.html")
         .replace("var title = \"\";", &format!("var title = \"{}\";", title))
         .replace("var data = [];", &data);
+
+    // For fractions, we format the y axis as percentages
+    if total.is_some() {
+        html = html.replace(
+            "var yFormatter = d3.format(\",\");",
+            "var yFormatter = d3.format(\".2%\");",
+        );
+    }
 
     let dir = env::temp_dir().join("cargo-tally");
     fs::create_dir_all(&dir)?;

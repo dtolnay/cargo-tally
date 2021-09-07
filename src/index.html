@@ -34,9 +34,10 @@
 
     var x = d3.scaleTime().range([0, width]);
     var y = d3.scaleLinear().range([height, 0]);
+    var yFormatter = d3.format(",");
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var xAxis = d3.axisBottom(x);
-    var yAxis = d3.axisLeft(y);
+    var yAxis = d3.axisLeft(y).tickFormat(yFormatter);
 
     var line = d3.line()
       .x(function(d) {
@@ -224,7 +225,7 @@
             var val = d3.interpolateNumber(below.edges, above.edges)(interp);
 
             d3.select(this).select('text')
-              .text(d.values[idx == 0 ? 0 : idx - 1].edges);
+              .text(yFormatter(d.values[idx == 0 ? 0 : idx - 1].edges));
 
             return "translate(" + mouse[0] + "," + y(val) +")";
           });
