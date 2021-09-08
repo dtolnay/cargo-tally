@@ -69,15 +69,8 @@ pub(crate) fn graph(
         .replace("var title = \"\";", &format!("var title = \"{}\";", title))
         .replace("var data = [];", &data);
 
-    if total.is_none() {
-        html = html.replace(
-            "var yFormatter = d3.format(\".\" + Math.max(0, d3.precisionFixed(stepSize) - 2) + \"%\");",
-            "var yFormatter = d3.format(\",\");"
-        );
-        html = html.replace(
-            "var tooltipFormatter = d3.format(\".\" + Math.max(0, d3.precisionFixed(stepSize / 10) - 2) + \"%\");",
-            "var tooltipFormatter = d3.format(\",\");",
-        );
+    if total.is_some() {
+        html = html.replace("var relative = false;", "var relative = true;");
     }
 
     let dir = env::temp_dir().join("cargo-tally");
