@@ -71,8 +71,12 @@ pub(crate) fn graph(
 
     if total.is_none() {
         html = html.replace(
-            "var yFormatter = d3.format(\".\" + Math.max(0, d3.precisionFixed((y.ticks()[1] - y.ticks()[0]) / 10) - 2) + \"%\");",
-            "var yFormatter = d3.format(\",\");",
+            "var yFormatter = d3.format(\".\" + Math.max(0, d3.precisionFixed(stepSize) - 2) + \"%\");",
+            "var yFormatter = d3.format(\",\");"
+        );
+        html = html.replace(
+            "var tooltipFormatter = d3.format(\".\" + Math.max(0, d3.precisionFixed(stepSize / 10) - 2) + \"%\");",
+            "var tooltipFormatter = d3.format(\",\");",
         );
     }
 
