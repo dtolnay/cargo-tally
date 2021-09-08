@@ -69,11 +69,10 @@ pub(crate) fn graph(
         .replace("var title = \"\";", &format!("var title = \"{}\";", title))
         .replace("var data = [];", &data);
 
-    // For fractions, we format the y axis as percentages
-    if total.is_some() {
+    if total.is_none() {
         html = html.replace(
+            "var yFormatter = d3.format(\".\" + Math.max(0, d3.precisionFixed((y.ticks()[1] - y.ticks()[0]) / 10) - 2) + \"%\");",
             "var yFormatter = d3.format(\",\");",
-            "var yFormatter = d3.format(\".2%\");",
         );
     }
 
@@ -97,7 +96,7 @@ impl<'a> Display for Row<'a> {
                 formatter.write_str("0")?;
             } else {
                 let fraction = self.1 as f32 / total as f32;
-                write_truncated(formatter, fraction)?;
+                write!(formatter, "{}", fraction)?;
             }
         } else {
             write!(formatter, "{}", self.1)?;
@@ -105,16 +104,4 @@ impl<'a> Display for Row<'a> {
         formatter.write_str("},\n")?;
         Ok(())
     }
-}
-
-fn write_truncated(formatter: &mut fmt::Formatter, fraction: f32) -> fmt::Result {
-    let mut repr = fraction.to_string();
-    let nonzero_digit = |ch: char| ch >= '1' && ch <= '9';
-    if let Some(first_nonzero) = repr.find(nonzero_digit) {
-        repr.truncate(first_nonzero + 3);
-    }
-    if let Some(last_nonzero) = repr.rfind(nonzero_digit) {
-        repr.truncate(last_nonzero + 1);
-    }
-    formatter.write_str(&repr)
 }

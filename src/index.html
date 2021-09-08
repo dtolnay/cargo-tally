@@ -34,10 +34,9 @@
 
     var x = d3.scaleTime().range([0, width]);
     var y = d3.scaleLinear().range([height, 0]);
-    var yFormatter = d3.format(",");
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var xAxis = d3.axisBottom(x);
-    var yAxis = d3.axisLeft(y).tickFormat(yFormatter);
+    var yAxis = d3.axisLeft(y);
 
     var line = d3.line()
       .x(function(d) {
@@ -81,6 +80,10 @@
         });
       })
     ]);
+
+    // NOTE `yFormmatter` should be created only after setting the domain values on `y`
+    var yFormatter = d3.format("." + Math.max(0, d3.precisionFixed((y.ticks()[1] - y.ticks()[0]) / 10) - 2) + "%");
+    yAxis.tickFormat(yFormatter);
 
     var legend = svg.selectAll('g')
       .data(data)
