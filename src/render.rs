@@ -65,9 +65,13 @@ pub(crate) fn graph(
     }
     data += "    ];";
 
-    let html = include_str!("index.html")
+    let mut html = include_str!("index.html")
         .replace("var title = \"\";", &format!("var title = \"{}\";", title))
         .replace("var data = [];", &data);
+
+    if total.is_some() {
+        html = html.replace("var relative = false;", "var relative = true;");
+    }
 
     let dir = env::temp_dir().join("cargo-tally");
     fs::create_dir_all(&dir)?;
@@ -89,7 +93,7 @@ impl<'a> Display for Row<'a> {
                 formatter.write_str("0")?;
             } else {
                 let fraction = self.1 as f32 / total as f32;
-                write_truncated(formatter, fraction)?;
+                write!(formatter, "{}", fraction)?;
             }
         } else {
             write!(formatter, "{}", self.1)?;
@@ -97,16 +101,4 @@ impl<'a> Display for Row<'a> {
         formatter.write_str("},\n")?;
         Ok(())
     }
-}
-
-fn write_truncated(formatter: &mut fmt::Formatter, fraction: f32) -> fmt::Result {
-    let mut repr = fraction.to_string();
-    let nonzero_digit = |ch: char| ch >= '1' && ch <= '9';
-    if let Some(first_nonzero) = repr.find(nonzero_digit) {
-        repr.truncate(first_nonzero + 3);
-    }
-    if let Some(last_nonzero) = repr.rfind(nonzero_digit) {
-        repr.truncate(last_nonzero + 1);
-    }
-    formatter.write_str(&repr)
 }
