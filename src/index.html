@@ -25,9 +25,7 @@
 </head>
 <body>
   <script>
-    var title = "";
-    var data = [];
-    var relative = false;
+    var data = CARGO_TALLY_DATA;
 
     var margin = { top: 20, right: 100, bottom: 30, left: 50 };
     var width = 950 - margin.left - margin.right;
@@ -38,9 +36,6 @@
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var xAxis = d3.axisBottom(x);
     var yAxis = d3.axisLeft(y);
-
-    var yFormatter = d3.format(",");
-    var tooltipFormatter = d3.format(",");
 
     var line = d3.line()
       .x(function(d) {
@@ -85,12 +80,15 @@
       })
     ]);
 
-    if (relative) {
-      // NOTE The ticks should be read only after setting the domain values on `y`
-      var stepSize = y.ticks()[1] - y.ticks()[0]
-      yFormatter = d3.format("." + Math.max(0, d3.precisionFixed(stepSize) - 2) + "%");
-      tooltipFormatter = d3.format("." + Math.max(0, d3.precisionFixed(stepSize / 10) - 2) + "%");
-    }
+#if CARGO_TALLY_RELATIVE
+    // NOTE The ticks should be read only after setting the domain values on `y`
+    var stepSize = y.ticks()[1] - y.ticks()[0]
+    var yFormatter = d3.format("." + Math.max(0, d3.precisionFixed(stepSize) - 2) + "%");
+    var tooltipFormatter = d3.format("." + Math.max(0, d3.precisionFixed(stepSize / 10) - 2) + "%");
+#else
+    var yFormatter = d3.format(",");
+    var tooltipFormatter = d3.format(",");
+#endif
     yAxis.tickFormat(yFormatter);
 
     var legend = svg.selectAll('g')
@@ -133,7 +131,7 @@
       .attr("y", 6)
       .attr("dy", ".71em")
       .style("text-anchor", "end")
-      .text(title);
+      .text(CARGO_TALLY_TITLE);
 
     var curve = svg.selectAll(".edges")
       .data(data)
