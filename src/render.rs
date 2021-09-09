@@ -2,6 +2,7 @@ use crate::total::Total;
 use anyhow::Result;
 use cargo_tally::matrix::Matrix;
 use cargo_tally::timestamp::NaiveDateTime;
+use std::cmp;
 use std::env;
 use std::fmt::{self, Display};
 use std::fs;
@@ -94,7 +95,7 @@ impl<'a> Display for Row<'a> {
                 formatter.write_str("0")?;
             } else {
                 let fraction = self.1 as f32 / total as f32;
-                write!(formatter, "{}", fraction)?;
+                write_truncated(formatter, fraction)?;
             }
         } else {
             write!(formatter, "{}", self.1)?;
@@ -102,4 +103,16 @@ impl<'a> Display for Row<'a> {
         formatter.write_str("},\n")?;
         Ok(())
     }
+}
+
+fn write_truncated(formatter: &mut fmt::Formatter, fraction: f32) -> fmt::Result {
+    let mut repr = fraction.to_string();
+    let nonzero_digit = |ch: char| ch >= '1' && ch <= '9';
+    if let Some(first_nonzero) = repr.find(nonzero_digit) {
+        repr.truncate(cmp::min(first_nonzero + 4, repr.len()));
+    }
+    if let Some(last_nonzero) = repr.rfind(nonzero_digit) {
+        repr.truncate(last_nonzero + 1);
+    }
+    formatter.write_str(&repr)
 }
