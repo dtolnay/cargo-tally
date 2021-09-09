@@ -64,7 +64,7 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
 
     let mut sysinfo = sysinfo::System::new();
     sysinfo.refresh_memory();
-    let total_memory_kb = sysinfo.get_total_memory();
+    let total_memory_kb = sysinfo.total_memory();
     let (min_kb, advised) = if opt.transitive {
         (10 * 1024 * 1024, "12 GB")
     } else {
