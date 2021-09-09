@@ -145,7 +145,8 @@
       })
       .style("stroke", function(d) {
         return color(d.name);
-      });
+      })
+      .style("stroke-linejoin", "round");
 
     curve.append("text")
       .datum(function(d) {
