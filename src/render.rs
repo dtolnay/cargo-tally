@@ -16,9 +16,10 @@ pub(crate) fn graph(
 ) -> Result<PathBuf> {
     let now = NaiveDateTime::now();
 
+    let relative = total.is_some();
     let title = if let Some(title) = title {
         title
-    } else if total.is_some() {
+    } else if relative {
         if transitive {
             "fraction of crates.io depending transitively"
         } else {
@@ -33,7 +34,7 @@ pub(crate) fn graph(
     };
 
     let mut data = String::new();
-    data += "var data = [\n";
+    data += "[\n";
     for (i, label) in labels.iter().enumerate() {
         data += "      {\"name\":\"";
         data += label;
@@ -63,15 +64,15 @@ pub(crate) fn graph(
         }
         data += "      ]},\n";
     }
-    data += "    ];";
+    data += "    ]";
 
-    let mut html = include_str!("index.html")
-        .replace("var title = \"\";", &format!("var title = \"{}\";", title))
-        .replace("var data = [];", &data);
-
-    if total.is_some() {
-        html = html.replace("var relative = false;", "var relative = true;");
-    }
+    let template = include_str!("index.html");
+    let mut preprocessor_context = minipre::Context::new();
+    preprocessor_context
+        .define("CARGO_TALLY_TITLE", format!("\"{}\"", title.escape_debug()))
+        .define("CARGO_TALLY_DATA", data)
+        .define("CARGO_TALLY_RELATIVE", (relative as usize).to_string());
+    let html = minipre::process_str(template, &mut preprocessor_context)?;
 
     let dir = env::temp_dir().join("cargo-tally");
     fs::create_dir_all(&dir)?;
