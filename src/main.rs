@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 #![allow(
+    clippy::cast_lossless,
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::collapsible_else_if,
