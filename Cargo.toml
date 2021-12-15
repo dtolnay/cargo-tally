@@ -28,7 +28,7 @@ opener = "0.5"
 ref-cast = "1.0"
 regex = "1.5"
 semver = "1.0"
-sysinfo = { version = "0.21", default-features = false }
+sysinfo = { version = "0.22", default-features = false }
 termcolor = "1.1"
 timely = { version = "0.12", default-features = false }
 typed-arena = "2.0"
