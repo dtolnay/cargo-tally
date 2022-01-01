@@ -1,4 +1,5 @@
 use crate::{cratename, user};
+use clap::{App, Arg};
 use regex::Regex;
 use semver::VersionReq;
 use std::env;
@@ -18,9 +19,6 @@ pub(crate) struct Opt {
     pub queries: Vec<String>,
 }
 
-type App<'b> = clap::App<'static, 'b>;
-type Arg = clap::Arg<'static, 'static>;
-
 const USAGE: &str = "\
     cargo tally [OPTIONS] QUERIES...
     cargo tally serde:1.0 'anyhow:^1.0 + thiserror'";
@@ -34,22 +32,20 @@ USAGE:
     {usage}
 
 OPTIONS:
-{unified}\
+{options}\
 ";
 
 fn app(jobs_help: &str) -> App {
     let mut app = App::new("cargo-tally")
-        .usage(USAGE)
-        .template(TEMPLATE)
+        .override_usage(USAGE)
+        .help_template(TEMPLATE)
         .arg(arg_db())
         .arg(arg_exclude())
         .arg(arg_jobs(jobs_help))
         .arg(arg_relative())
         .arg(arg_title())
         .arg(arg_transitive())
-        .arg(arg_queries())
-        .help_message("Print help information.")
-        .version_message("Print version information.");
+        .arg(arg_queries());
     if let Some(version) = option_env!("CARGO_PKG_VERSION") {
         app = app.version(version);
     }
@@ -123,8 +119,8 @@ pub(crate) fn parse() -> Opt {
     }
 }
 
-fn arg_db() -> Arg {
-    Arg::with_name(DB)
+fn arg_db<'help>() -> Arg<'help> {
+    Arg::new(DB)
         .long(DB)
         .takes_value(true)
         .value_name("PATH")
@@ -132,63 +128,62 @@ fn arg_db() -> Arg {
         .help("Path to crates.io's database dump")
 }
 
-fn arg_exclude() -> Arg {
-    Arg::with_name(EXCLUDE)
+fn arg_exclude<'help>() -> Arg<'help> {
+    Arg::new(EXCLUDE)
         .long(EXCLUDE)
-        .hidden(true)
-        .multiple(true)
+        .hide(true)
+        .multiple_occurrences(true)
         .value_name("REGEX")
         .validator_os(validate_parse::<Regex>)
         .help("Ignore a dependency coming from any crates matching regex")
 }
 
-fn arg_jobs<'b>(help: &'b str) -> clap::Arg<'static, 'b> {
-    Arg::with_name(JOBS)
+fn arg_jobs<'help>(help: &'help str) -> Arg<'help> {
+    Arg::new(JOBS)
         .long(JOBS)
-        .short("j")
+        .short('j')
         .takes_value(true)
         .value_name("N")
         .validator_os(validate_parse::<usize>)
         .help(help)
 }
 
-fn arg_relative() -> Arg {
-    Arg::with_name(RELATIVE)
+fn arg_relative<'help>() -> Arg<'help> {
+    Arg::new(RELATIVE)
         .long(RELATIVE)
         .help("Display as a fraction of total crates, not absolute number")
 }
 
-fn arg_title() -> Arg {
-    Arg::with_name(TITLE)
+fn arg_title<'help>() -> Arg<'help> {
+    Arg::new(TITLE)
         .long(TITLE)
-        .hidden(true)
+        .hide(true)
         .takes_value(true)
         .value_name("TITLE")
         .validator_os(validate_parse::<String>)
         .help("Graph title")
 }
 
-fn arg_transitive() -> Arg {
-    Arg::with_name(TRANSITIVE)
+fn arg_transitive<'help>() -> Arg<'help> {
+    Arg::new(TRANSITIVE)
         .long(TRANSITIVE)
         .help("Count transitive dependencies, not just direct dependencies")
 }
 
-fn arg_queries() -> Arg {
-    Arg::with_name(QUERIES)
+fn arg_queries<'help>() -> Arg<'help> {
+    Arg::new(QUERIES)
         .required(true)
-        .multiple(true)
+        .multiple_values(true)
         .value_name("QUERIES")
         .validator_os(validate_query)
         .help("Queries")
 }
 
-fn validate_utf8(arg: &OsStr) -> Result<&str, OsString> {
-    arg.to_str()
-        .ok_or_else(|| OsString::from("invalid utf-8 sequence"))
+fn validate_utf8(arg: &OsStr) -> Result<&str, &'static str> {
+    arg.to_str().ok_or("invalid utf-8 sequence")
 }
 
-fn validate_parse<T>(arg: &OsStr) -> Result<(), OsString>
+fn validate_parse<T>(arg: &OsStr) -> Result<(), String>
 where
     T: FromStr,
     T::Err: Display,
@@ -196,10 +191,10 @@ where
     validate_utf8(arg)?
         .parse::<T>()
         .map(drop)
-        .map_err(|err| OsString::from(err.to_string()))
+        .map_err(|err| err.to_string())
 }
 
-fn validate_query(arg: &OsStr) -> Result<(), OsString> {
+fn validate_query(arg: &OsStr) -> Result<(), String> {
     for predicate in validate_utf8(arg)?.split('+') {
         let predicate = predicate.trim();
 
@@ -207,7 +202,7 @@ fn validate_query(arg: &OsStr) -> Result<(), OsString> {
             if username.split('/').all(user::valid) {
                 continue;
             } else {
-                return Err(OsString::from("invalid crates.io username"));
+                return Err("invalid crates.io username".to_owned());
             }
         }
 
@@ -218,11 +213,11 @@ fn validate_query(arg: &OsStr) -> Result<(), OsString> {
         };
 
         if !cratename::valid(name.trim()) {
-            return Err(OsString::from("invalid crate name according to crates.io"));
+            return Err("invalid crate name according to crates.io".to_owned());
         }
 
         if let Some(req) = req {
-            VersionReq::from_str(req).map_err(|err| OsString::from(err.to_string()))?;
+            VersionReq::from_str(req).map_err(|err| err.to_string())?;
         }
     }
     Ok(())

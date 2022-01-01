@@ -7,6 +7,7 @@
     clippy::let_underscore_drop,
     clippy::manual_range_contains,
     clippy::module_name_repetitions,
+    clippy::needless_lifetimes,
     clippy::redundant_else,
     clippy::single_match_else,
     clippy::too_many_lines,
