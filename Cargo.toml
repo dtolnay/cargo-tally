@@ -30,5 +30,6 @@ regex = "1.5"
 semver = "1.0"
 sysinfo = { version = "0.22", default-features = false }
 termcolor = "1.1"
+thiserror = "1.0"
 timely = { version = "0.12", default-features = false }
 typed-arena = "2.0"
