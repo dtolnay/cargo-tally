@@ -7,6 +7,7 @@ use std::ffi::{OsStr, OsString};
 use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
+use thiserror::Error;
 
 #[derive(Debug)]
 pub(crate) struct Opt {
@@ -179,22 +180,35 @@ fn arg_queries<'help>() -> Arg<'help> {
         .help("Queries")
 }
 
-fn validate_utf8(arg: &OsStr) -> Result<&str, &'static str> {
-    arg.to_str().ok_or("invalid utf-8 sequence")
+#[derive(Error, Debug)]
+enum Error {
+    #[error("invalid utf-8 sequence")]
+    Utf8,
+    #[error("invalid crates.io username")]
+    InvalidUsername,
+    #[error("invalid crate name according to crates.io")]
+    InvalidCrateName,
+    #[error(transparent)]
+    Semver(#[from] semver::Error),
+    #[error("{0}")]
+    Msg(String),
 }
 
-fn validate_parse<T>(arg: &OsStr) -> Result<(), String>
+fn validate_utf8(arg: &OsStr) -> Result<&str, Error> {
+    arg.to_str().ok_or(Error::Utf8)
+}
+
+fn validate_parse<T>(arg: &OsStr) -> Result<T, Error>
 where
     T: FromStr,
     T::Err: Display,
 {
     validate_utf8(arg)?
         .parse::<T>()
-        .map(drop)
-        .map_err(|err| err.to_string())
+        .map_err(|err| Error::Msg(err.to_string()))
 }
 
-fn validate_query(arg: &OsStr) -> Result<(), String> {
+fn validate_query(arg: &OsStr) -> Result<(), Error> {
     for predicate in validate_utf8(arg)?.split('+') {
         let predicate = predicate.trim();
 
@@ -202,7 +216,7 @@ fn validate_query(arg: &OsStr) -> Result<(), String> {
             if username.split('/').all(user::valid) {
                 continue;
             } else {
-                return Err("invalid crates.io username".to_owned());
+                return Err(Error::InvalidUsername);
             }
         }
 
@@ -213,11 +227,11 @@ fn validate_query(arg: &OsStr) -> Result<(), String> {
         };
 
         if !cratename::valid(name.trim()) {
-            return Err("invalid crate name according to crates.io".to_owned());
+            return Err(Error::InvalidCrateName);
         }
 
         if let Some(req) = req {
-            VersionReq::from_str(req).map_err(|err| err.to_string())?;
+            VersionReq::from_str(req)?;
         }
     }
     Ok(())
