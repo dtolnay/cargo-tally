@@ -222,3 +222,8 @@ fn validate_query(arg: &OsStr) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[test]
+fn test_cli() {
+    app("").debug_assert();
+}
