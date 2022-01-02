@@ -126,6 +126,7 @@ fn arg_db<'help>() -> Arg<'help> {
         .takes_value(true)
         .value_name("PATH")
         .default_value("./db-dump.tar.gz")
+        .allow_invalid_utf8(true)
         .help("Path to crates.io's database dump")
 }
 
