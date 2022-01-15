@@ -7,6 +7,7 @@
     clippy::cast_ptr_alignment,
     clippy::cast_sign_loss,
     clippy::items_after_statements,
+    clippy::iter_not_returning_iterator, // https://github.com/rust-lang/rust-clippy/issues/8285
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
     clippy::module_name_repetitions,
