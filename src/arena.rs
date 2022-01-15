@@ -3,7 +3,6 @@ use std::any::TypeId;
 use std::collections::HashMap as Map;
 use std::fmt::{self, Debug};
 use std::iter::{Copied, FromIterator};
-use std::ptr;
 use std::slice::Iter;
 use std::sync::{Mutex, PoisonError};
 use typed_arena::Arena;
@@ -79,7 +78,7 @@ where
         let arena: &Box<dyn Send> = map
             .entry(TypeId::of::<T>())
             .or_insert_with(|| Box::new(Arena::<T>::new()));
-        let arena = unsafe { &*(ptr::addr_of!(**arena) as *const Arena<T>) };
+        let arena = unsafe { &*(&**arena as *const dyn Send as *const Arena<T>) };
         Slice {
             contents: arena.alloc_extend(iter),
         }

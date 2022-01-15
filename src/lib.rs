@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 #![allow(
+    clippy::borrow_as_ptr,
     clippy::borrowed_box,
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
