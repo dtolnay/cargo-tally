@@ -1,5 +1,5 @@
 use crate::{cratename, user};
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use regex::Regex;
 use semver::VersionReq;
 use std::env;
@@ -36,8 +36,8 @@ OPTIONS:
 {options}\
 ";
 
-fn app(jobs_help: &str) -> App {
-    let mut app = App::new("cargo-tally")
+fn app(jobs_help: &str) -> Command {
+    let mut app = Command::new("cargo-tally")
         .override_usage(USAGE)
         .help_template(TEMPLATE)
         .arg(arg_db())
