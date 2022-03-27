@@ -18,6 +18,24 @@ macro_rules! do_not_abomonate {
                 unimplemented!("unexpected abomonation extent");
             }
         }
+
+        impl $(<$param>)? serde::Serialize for $($path)::+ $(<$param>)? $(where $($clause)*)? {
+            fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                unimplemented!("unexpected serde serialize");
+            }
+        }
+
+        impl<'de, $($param)?> serde::Deserialize<'de> for $($path)::+ $(<$param>)? $(where $($clause)*)? {
+            fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                unimplemented!("unexpected serde deserialize");
+            }
+        }
     };
 }
 
