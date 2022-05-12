@@ -43,6 +43,10 @@ use std::time::Instant;
 use sysinfo::SystemExt;
 use termcolor::{ColorChoice, StandardStream};
 
+cargo_subcommand_metadata::description!(
+    "Draw graphs of the number of dependencies on a crate over time"
+);
+
 fn main() {
     let mut stderr = StandardStream::stderr(ColorChoice::Auto);
     if let Err(err) = try_main(&mut stderr) {
