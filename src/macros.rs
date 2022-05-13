@@ -68,6 +68,7 @@ macro_rules! datetime {
 }
 
 #[rustfmt::skip]
+#[allow(unused_macro_rules)]
 macro_rules! month_number {
     (Jan) => { 1 };
     (Feb) => { 2 };
