@@ -15,6 +15,7 @@
     clippy::needless_pass_by_value,
     clippy::option_if_let_else,
     clippy::ptr_as_ptr,
+    clippy::significant_drop_in_scrutinee,
     clippy::too_many_lines,
     clippy::unseparated_literal_suffix
 )]
