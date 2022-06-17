@@ -4,6 +4,7 @@
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::collapsible_else_if,
+    clippy::expl_impl_clone_on_copy,
     clippy::let_underscore_drop,
     clippy::manual_range_contains,
     clippy::module_name_repetitions,

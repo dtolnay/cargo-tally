@@ -1,5 +1,8 @@
 use crate::{cratename, user};
+use clap::builder::{ArgAction, TypedValueParser, ValueParser};
+use clap::error::ErrorKind;
 use clap::{Arg, Command};
+use ghost::phantom;
 use regex::Regex;
 use semver::VersionReq;
 use std::env;
@@ -86,27 +89,28 @@ pub(crate) fn parse() -> Opt {
     }
     let matches = app(&jobs_help).get_matches_from(args);
 
-    let db = PathBuf::from(matches.value_of_os(DB).unwrap());
+    let db = PathBuf::from(matches.get_one::<PathBuf>(DB).unwrap());
 
     let exclude = matches
-        .values_of(EXCLUDE)
+        .get_many::<Regex>(EXCLUDE)
         .unwrap_or_default()
-        .map(|regex| regex.parse().unwrap())
+        .cloned()
         .collect();
 
     let jobs = matches
-        .value_of(JOBS)
-        .map_or(default_jobs, |jobs| jobs.parse().unwrap());
+        .get_one::<usize>(JOBS)
+        .copied()
+        .unwrap_or(default_jobs);
 
-    let title = matches.value_of(TITLE).map(str::to_owned);
+    let title = matches.get_one::<String>(TITLE).map(String::clone);
 
-    let relative = matches.is_present(RELATIVE);
-    let transitive = matches.is_present(TRANSITIVE);
+    let relative = matches.contains_id(RELATIVE);
+    let transitive = matches.contains_id(TRANSITIVE);
 
     let queries = matches
-        .values_of(QUERIES)
+        .get_many::<String>(QUERIES)
         .unwrap()
-        .map(str::to_owned)
+        .map(String::clone)
         .collect();
 
     Opt {
@@ -126,7 +130,7 @@ fn arg_db<'help>() -> Arg<'help> {
         .takes_value(true)
         .value_name("PATH")
         .default_value("./db-dump.tar.gz")
-        .allow_invalid_utf8(true)
+        .value_parser(ValueParser::path_buf())
         .help("Path to crates.io's database dump")
 }
 
@@ -134,9 +138,9 @@ fn arg_exclude<'help>() -> Arg<'help> {
     Arg::new(EXCLUDE)
         .long(EXCLUDE)
         .hide(true)
-        .multiple_occurrences(true)
+        .action(ArgAction::Append)
         .value_name("REGEX")
-        .validator_os(validate_parse::<Regex>)
+        .value_parser(ValueParserFromStr::<Regex>)
         .help("Ignore a dependency coming from any crates matching regex")
 }
 
@@ -146,7 +150,7 @@ fn arg_jobs<'help>(help: &'help str) -> Arg<'help> {
         .short('j')
         .takes_value(true)
         .value_name("N")
-        .validator_os(validate_parse::<usize>)
+        .value_parser(ValueParserFromStr::<usize>)
         .help(help)
 }
 
@@ -162,7 +166,7 @@ fn arg_title<'help>() -> Arg<'help> {
         .hide(true)
         .takes_value(true)
         .value_name("TITLE")
-        .validator_os(validate_parse::<String>)
+        .value_parser(ValueParser::string())
         .help("Graph title")
 }
 
@@ -177,7 +181,7 @@ fn arg_queries<'help>() -> Arg<'help> {
         .required(true)
         .multiple_values(true)
         .value_name("QUERIES")
-        .validator_os(validate_query)
+        .value_parser(ValidateQuery)
         .help("Queries")
 }
 
@@ -191,51 +195,97 @@ enum Error {
     InvalidCrateName,
     #[error(transparent)]
     Semver(#[from] semver::Error),
-    #[error("{0}")]
-    Msg(String),
 }
 
-fn validate_utf8(arg: &OsStr) -> Result<&str, Error> {
-    arg.to_str().ok_or(Error::Utf8)
+#[phantom]
+struct ValueParserFromStr<T>;
+
+impl<T> Clone for ValueParserFromStr<T> {
+    fn clone(&self) -> Self {
+        ValueParserFromStr
+    }
 }
 
-fn validate_parse<T>(arg: &OsStr) -> Result<T, Error>
+impl<T> TypedValueParser for ValueParserFromStr<T>
 where
-    T: FromStr,
+    T: Send + Sync + FromStr + 'static,
     T::Err: Display,
 {
-    validate_utf8(arg)?
-        .parse::<T>()
-        .map_err(|err| Error::Msg(err.to_string()))
+    type Value = T;
+
+    fn parse_ref(
+        &self,
+        _cmd: &Command,
+        _arg: Option<&Arg>,
+        value: &OsStr,
+    ) -> clap::Result<Self::Value> {
+        let string = value
+            .to_str()
+            .ok_or_else(|| clap::Error::raw(ErrorKind::InvalidUtf8, Error::Utf8))?;
+        T::from_str(string).map_err(|err| clap::Error::raw(ErrorKind::InvalidValue, err))
+    }
 }
 
-fn validate_query(arg: &OsStr) -> Result<(), Error> {
-    for predicate in validate_utf8(arg)?.split('+') {
-        let predicate = predicate.trim();
+#[derive(Clone)]
+struct ValidateQuery;
 
-        if let Some(username) = predicate.strip_prefix('@') {
-            if username.split('/').all(user::valid) {
-                continue;
+impl TypedValueParser for ValidateQuery {
+    type Value = String;
+
+    fn parse_ref(
+        &self,
+        cmd: &Command,
+        arg: Option<&Arg>,
+        value: &OsStr,
+    ) -> clap::Result<Self::Value> {
+        self.parse(cmd, arg, value.to_owned())
+    }
+
+    fn parse(
+        &self,
+        _cmd: &Command,
+        _arg: Option<&Arg>,
+        value: OsString,
+    ) -> clap::Result<Self::Value> {
+        let string = value
+            .into_string()
+            .map_err(|_| clap::Error::raw(ErrorKind::InvalidUtf8, Error::Utf8))?;
+
+        for predicate in string.split('+') {
+            let predicate = predicate.trim();
+
+            if let Some(username) = predicate.strip_prefix('@') {
+                if username.split('/').all(user::valid) {
+                    continue;
+                } else {
+                    return Err(clap::Error::raw(
+                        ErrorKind::ValueValidation,
+                        Error::InvalidUsername,
+                    ));
+                }
+            }
+
+            let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
+                (name, Some(req))
             } else {
-                return Err(Error::InvalidUsername);
+                (predicate, None)
+            };
+
+            if !cratename::valid(name.trim()) {
+                return Err(clap::Error::raw(
+                    ErrorKind::ValueValidation,
+                    Error::InvalidCrateName,
+                ));
+            }
+
+            if let Some(req) = req {
+                VersionReq::from_str(req)
+                    .map_err(|err| clap::Error::raw(ErrorKind::ValueValidation, err))?;
             }
         }
 
-        let (name, req) = if let Some((name, req)) = predicate.split_once(':') {
-            (name, Some(req))
-        } else {
-            (predicate, None)
-        };
-
-        if !cratename::valid(name.trim()) {
-            return Err(Error::InvalidCrateName);
-        }
-
-        if let Some(req) = req {
-            VersionReq::from_str(req)?;
-        }
+        Ok(string)
     }
-    Ok(())
 }
 
 #[test]
