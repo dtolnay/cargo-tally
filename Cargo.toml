@@ -7,7 +7,7 @@ description = "Cargo subcommand for drawing graphs of the number of dependencies
 repository = "https://github.com/dtolnay/cargo-tally"
 categories = ["development-tools::cargo-plugins"]
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [lib]
 path = "src/hidden.rs"
