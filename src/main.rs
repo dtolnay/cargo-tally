@@ -51,7 +51,7 @@ cargo_subcommand_metadata::description!(
 fn main() {
     let mut stderr = StandardStream::stderr(ColorChoice::Auto);
     if let Err(err) = try_main(&mut stderr) {
-        writeln!(stderr.error(), "{}", err);
+        writeln!(stderr.error(), "{err}");
         process::exit(1);
     }
 }
@@ -81,7 +81,6 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         writeln!(
             stderr.warning(),
             "warning: running with <{advised} memory is not advised.",
-            advised = advised,
         );
     }
 

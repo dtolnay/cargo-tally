@@ -84,12 +84,12 @@ impl<'a> Display for DisplayQuery<'a> {
                     let original_name = self.crates.name(predicate.crate_id).unwrap();
                     formatter.write_str(original_name)?;
                     if let Some(req) = predicate.req {
-                        write!(formatter, ":{}", req)?;
+                        write!(formatter, ":{req}")?;
                     }
                 }
                 RawPredicate::User(username) => {
                     let (username, _user_id) = self.crates.users.get_key_value(username).unwrap();
-                    write!(formatter, "@{}", username)?;
+                    write!(formatter, "@{username}")?;
                 }
             }
         }
