@@ -71,13 +71,13 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
 
     let mut sysinfo = sysinfo::System::new();
     sysinfo.refresh_memory();
-    let total_memory_kb = sysinfo.total_memory();
-    let (min_kb, advised) = if opt.transitive {
-        (10 * 1024 * 1024, "12 GB")
+    let total_memory = sysinfo.total_memory();
+    let (min_memory, advised) = if opt.transitive {
+        (10 * 1024 * 1024 * 1024, "12 GB")
     } else {
-        (7 * 1024 * 1024, "8 GB")
+        (7 * 1024 * 1024 * 1024, "8 GB")
     };
-    if total_memory_kb < min_kb && total_memory_kb > 0 {
+    if total_memory < min_memory && total_memory > 0 {
         writeln!(
             stderr.warning(),
             "warning: running with <{advised} memory is not advised.",
