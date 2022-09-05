@@ -93,6 +93,13 @@ impl<'a> Display for Row<'a> {
             let total = total.eval(self.0);
             if total == 0 {
                 formatter.write_str("0")?;
+            } else if self.1 == total {
+                // Bump a 100% down to 50%. The only graph affected by this is
+                // `cargo tally --relative --transitive @alexcrichton` and while
+                // 50% is not an accurate datum, this hack makes that graph more
+                // readable by avoiding the y-axis getting extended all the way
+                // to 100% in the first day of crates.io's existence.
+                formatter.write_str("0.5")?;
             } else {
                 let fraction = self.1 as f32 / total as f32;
                 write_truncated(formatter, fraction)?;
