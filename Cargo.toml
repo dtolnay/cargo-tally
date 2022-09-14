@@ -7,7 +7,6 @@ description = "Cargo subcommand for drawing graphs of the number of dependencies
 edition = "2021"
 keywords = ["cargo", "subcommand"]
 license = "MIT OR Apache-2.0"
-readme = "README.md"
 repository = "https://github.com/dtolnay/cargo-tally"
 
 [lib]
