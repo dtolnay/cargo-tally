@@ -1,14 +1,15 @@
 use crate::cratemap::CrateMap;
 use cargo_tally::arena::Slice;
+use cargo_tally::id::{CrateId, VersionId};
 use cargo_tally::version::Version;
-use cargo_tally::DbDump;
+use cargo_tally::{DbDump, Dependency};
 use semver::{Comparator, Op};
 use std::cmp;
 use std::collections::btree_map::{BTreeMap as Map, Entry};
 
 pub(crate) fn clean(db_dump: &mut DbDump, crates: &CrateMap) {
-    let mut crate_max_version = Map::new();
-    let mut dependencies_per_version = Map::new();
+    let mut crate_max_version: Map<CrateId, &Version> = Map::new();
+    let mut dependencies_per_version: Map<VersionId, Vec<&mut Dependency>> = Map::new();
 
     for dep in &mut db_dump.dependencies {
         dependencies_per_version

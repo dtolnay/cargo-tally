@@ -17,12 +17,12 @@ use std::path::Path;
 
 pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut crates = CrateMap::new();
-    let mut users = Map::new();
-    let mut teams = Map::new();
-    let mut owners = Map::new();
-    let mut releases = Vec::new();
-    let mut dependencies = Vec::new();
-    let mut release_features = Vec::new();
+    let mut users: Map<User, OwnerId> = Map::new();
+    let mut teams: Map<User, OwnerId> = Map::new();
+    let mut owners: Map<OwnerId, Vec<CrateId>> = Map::new();
+    let mut releases: Vec<Release> = Vec::new();
+    let mut dependencies: Vec<Dependency> = Vec::new();
+    let mut release_features: Vec<Vec<(FeatureId, Vec<CrateFeature>)>> = Vec::new();
     let feature_names = RefCell::new(FeatureNames::new());
 
     db_dump::Loader::new()
