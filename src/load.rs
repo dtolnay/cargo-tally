@@ -1,5 +1,6 @@
 use crate::cratemap::CrateMap;
 use crate::user::User;
+use anyhow::{bail, Result};
 use cargo_tally::arena::Slice;
 use cargo_tally::dependency::DependencyKind;
 use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId, FeatureNames};
@@ -8,7 +9,6 @@ use cargo_tally::timestamp::NaiveDateTime;
 use cargo_tally::version::{Version, VersionReq};
 use cargo_tally::{DbDump, Dependency, Release};
 use db_dump::crate_owners::OwnerId;
-use db_dump::Result;
 use std::cell::RefCell;
 use std::collections::{BTreeMap as Map, BTreeSet as Set};
 use std::iter::FromIterator;
@@ -142,7 +142,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut feature_buffer = Vec::new();
     for (release, mut features) in releases.iter_mut().zip(release_features) {
         for (feature, enables) in &mut features {
-            enables.retain_mut(|feature| {
+            for feature in &mut *enables {
                 let feature_id = FeatureId(feature.crate_id.0);
                 feature.crate_id = if feature_id == FeatureId::CRATE {
                     release.crate_id
@@ -154,12 +154,14 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                 } {
                     crate_id
                 } else {
-                    // crates.io's API is lossy :(
-                    // https://github.com/rust-lang/crates.io/issues/1539
-                    return false;
+                    bail!(
+                        "{} v{} depends on {} which is not found",
+                        crates.name(release.crate_id).unwrap(),
+                        release.num,
+                        feature_names.name(feature_id),
+                    );
                 };
-                true
-            });
+            }
             feature_buffer.push((*feature, Slice::new(enables)));
         }
         release.features = Slice::new(&feature_buffer);
