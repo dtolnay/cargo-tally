@@ -1,5 +1,6 @@
 use crate::cratemap::CrateMap;
 use crate::user::User;
+use anyhow::{bail, Result};
 use cargo_tally::arena::Slice;
 use cargo_tally::dependency::DependencyKind;
 use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId, FeatureNames};
@@ -8,7 +9,6 @@ use cargo_tally::timestamp::NaiveDateTime;
 use cargo_tally::version::{Version, VersionReq};
 use cargo_tally::{DbDump, Dependency, Release};
 use db_dump::crate_owners::OwnerId;
-use db_dump::Result;
 use std::cell::RefCell;
 use std::collections::{BTreeMap as Map, BTreeSet as Set};
 use std::iter::FromIterator;
@@ -23,6 +23,8 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut releases: Vec<Release> = Vec::new();
     let mut dependencies: Vec<Dependency> = Vec::new();
     let mut release_features: Vec<Vec<(FeatureId, Vec<CrateFeature>)>> = Vec::new();
+    let mut dep_renames: Map<DependencyId, String> = Map::new();
+    let mut dep_renames_resolve: Map<(VersionId, FeatureId), CrateId> = Map::new();
     let feature_names = RefCell::new(FeatureNames::new());
 
     db_dump::Loader::new()
@@ -96,6 +98,9 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             });
         })
         .dependencies(|row| {
+            let dependency_id = DependencyId::from(row.id);
+            let version_id = VersionId::from(row.version_id);
+            let crate_id = CrateId::from(row.crate_id);
             let feature_id = if row.optional {
                 FeatureId::TBD
             } else {
@@ -114,10 +119,16 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                     }
                 }
             }
+            if let Some(explicit_name) = row.explicit_name {
+                let mut feature_names = feature_names.borrow_mut();
+                dep_renames_resolve
+                    .insert((version_id, feature_names.id(&explicit_name)), crate_id);
+                dep_renames.insert(dependency_id, explicit_name);
+            }
             dependencies.push(Dependency {
-                id: DependencyId::from(row.id),
-                version_id: VersionId::from(row.version_id),
-                crate_id: CrateId::from(row.crate_id),
+                id: dependency_id,
+                version_id,
+                crate_id,
                 req: VersionReq::from(row.req),
                 feature_id,
                 default_features: DefaultFeatures(default_features),
@@ -131,22 +142,26 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut feature_buffer = Vec::new();
     for (release, mut features) in releases.iter_mut().zip(release_features) {
         for (feature, enables) in &mut features {
-            enables.retain_mut(|feature| {
+            for feature in &mut *enables {
                 let feature_id = FeatureId(feature.crate_id.0);
                 feature.crate_id = if feature_id == FeatureId::CRATE {
                     release.crate_id
+                } else if let Some(crate_id) = dep_renames_resolve.get(&(release.id, feature_id)) {
+                    *crate_id
                 } else if let Some(crate_id) = {
                     let name = feature_names.name(feature_id);
                     crates.id(name)
                 } {
                     crate_id
                 } else {
-                    // crates.io's API is lossy :(
-                    // https://github.com/rust-lang/crates.io/issues/1539
-                    return false;
+                    bail!(
+                        "{} v{} depends on {} which is not found",
+                        crates.name(release.crate_id).unwrap(),
+                        release.num,
+                        feature_names.name(feature_id),
+                    );
                 };
-                true
-            });
+            }
             feature_buffer.push((*feature, Slice::new(enables)));
         }
         release.features = Slice::new(&feature_buffer);
@@ -154,8 +169,10 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     }
     for dep in &mut dependencies {
         if dep.feature_id == FeatureId::TBD {
-            let crate_name = crates.name(dep.crate_id).unwrap();
-            dep.feature_id = feature_names.id(crate_name);
+            dep.feature_id = feature_names.id(match dep_renames.get(&dep.id) {
+                Some(explicit_name) => explicit_name,
+                None => crates.name(dep.crate_id).unwrap(),
+            });
         }
     }
 
