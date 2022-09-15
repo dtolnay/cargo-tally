@@ -59,21 +59,26 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                     let feature_id = feature_names.id(feature);
                     let enables = enables
                         .iter()
-                        .map(|feature| {
+                        .filter_map(|feature| {
                             let crate_id;
                             let mut feature = feature.as_str();
                             if let Some(slash) = feature.find('/') {
                                 let crate_name = &feature[..slash];
+                                if crate_name.ends_with('?') {
+                                    // TODO: support Cargo's "weak dependency features"
+                                    // https://github.com/dtolnay/cargo-tally/issues/56
+                                    return None;
+                                }
                                 crate_id = feature_names.id(crate_name);
                                 feature = &feature[slash + 1..];
                             } else {
                                 crate_id = FeatureId::CRATE;
                             }
                             let feature_id = feature_names.id(feature);
-                            CrateFeature {
+                            Some(CrateFeature {
                                 crate_id: CrateId(crate_id.0),
                                 feature_id,
-                            }
+                            })
                         })
                         .collect::<Vec<_>>();
                     features.push((feature_id, enables));
