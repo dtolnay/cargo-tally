@@ -126,9 +126,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut feature_buffer = Vec::new();
     for (release, mut features) in releases.iter_mut().zip(release_features) {
         for (feature, enables) in &mut features {
-            // TODO: use retain_mut or drain_filter
-            let mut i = 0;
-            while let Some(feature) = enables.get_mut(i) {
+            enables.retain_mut(|feature| {
                 let feature_id = FeatureId(feature.crate_id.0);
                 feature.crate_id = if feature_id == FeatureId::CRATE {
                     release.crate_id
@@ -140,11 +138,10 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                 } else {
                     // crates.io's API is lossy :(
                     // https://github.com/rust-lang/crates.io/issues/1539
-                    enables.remove(i);
-                    continue;
+                    return false;
                 };
-                i += 1;
-            }
+                true
+            });
             feature_buffer.push((*feature, Slice::new(enables)));
         }
         release.features = Slice::new(&feature_buffer);
