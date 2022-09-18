@@ -14,6 +14,12 @@ impl FeatureId {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub struct FeatureEnables {
+    pub id: FeatureId,
+    pub enables: Slice<CrateFeature>,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct CrateFeature {
     pub crate_id: CrateId,
     pub feature_id: FeatureId,

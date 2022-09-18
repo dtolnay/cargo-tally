@@ -3,7 +3,9 @@ use crate::user::User;
 use anyhow::{bail, Result};
 use cargo_tally::arena::Slice;
 use cargo_tally::dependency::DependencyKind;
-use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId, FeatureNames};
+use cargo_tally::feature::{
+    CrateFeature, DefaultFeatures, FeatureEnables, FeatureId, FeatureNames,
+};
 use cargo_tally::id::{CrateId, DependencyId, VersionId};
 use cargo_tally::timestamp::NaiveDateTime;
 use cargo_tally::version::{Version, VersionReq};
@@ -162,7 +164,10 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                     );
                 };
             }
-            feature_buffer.push((*feature, Slice::new(enables)));
+            feature_buffer.push(FeatureEnables {
+                id: *feature,
+                enables: Slice::new(enables),
+            });
         }
         release.features = Slice::new(&feature_buffer);
         feature_buffer.clear();

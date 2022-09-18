@@ -1,7 +1,7 @@
 use crate::cratemap::CrateMap;
 use cargo_tally::arena::Slice;
 use cargo_tally::dependency::DependencyKind;
-use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureId};
+use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureEnables, FeatureId};
 use cargo_tally::id::{DependencyId, VersionId};
 use cargo_tally::{DbDump, Dependency, Release};
 use std::collections::BTreeSet as Set;
@@ -82,9 +82,9 @@ pub(crate) fn mend(db_dump: &mut DbDump, crates: &CrateMap) {
     {
         let crate_id = crates.id("partial-io").unwrap();
 
-        let features = Slice::new(&[(
-            db_dump.features.id("tokio"),
-            Slice::new(&[
+        let features = Slice::new(&[FeatureEnables {
+            id: db_dump.features.id("tokio"),
+            enables: Slice::new(&[
                 CrateFeature {
                     crate_id,
                     feature_id: db_dump.features.id("tokio-io"),
@@ -94,7 +94,7 @@ pub(crate) fn mend(db_dump: &mut DbDump, crates: &CrateMap) {
                     feature_id: db_dump.features.id("futures"),
                 },
             ]),
-        )]);
+        }]);
 
         push_release({
             let release = Release {
