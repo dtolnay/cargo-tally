@@ -24,7 +24,8 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut owners: Map<OwnerId, Vec<CrateId>> = Map::new();
     let mut releases: Vec<Release> = Vec::new();
     let mut dependencies: Vec<Dependency> = Vec::new();
-    let mut release_features: Vec<Vec<(FeatureId, Vec<CrateFeature>)>> = Vec::new();
+    let mut release_features: Vec<Vec<(FeatureId, Vec<CrateFeature>, Vec<CrateFeature>)>> =
+        Vec::new();
     let mut dep_renames: Map<DependencyId, String> = Map::new();
     let mut dep_renames_resolve: Map<(VersionId, FeatureId), CrateId> = Map::new();
     let feature_names = RefCell::new(FeatureNames::new());
@@ -62,15 +63,16 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                 for (feature, raw_enables) in &row.features {
                     let feature_id = feature_names.id(feature);
                     let mut enables = Vec::new();
+                    let mut weak_enables = Vec::new();
                     for feature in raw_enables {
                         let crate_id;
+                        let mut crate_feature_vec = &mut enables;
                         let mut feature = feature.as_str();
                         if let Some(slash) = feature.find('/') {
-                            let crate_name = &feature[..slash];
-                            if crate_name.ends_with('?') {
-                                // TODO: support Cargo's "weak dependency features"
-                                // https://github.com/dtolnay/cargo-tally/issues/56
-                                continue;
+                            let mut crate_name = &feature[..slash];
+                            if let Some(crate_name_weak) = crate_name.strip_suffix('?') {
+                                crate_name = crate_name_weak;
+                                crate_feature_vec = &mut weak_enables;
                             }
                             crate_id = feature_names.id(crate_name);
                             feature = &feature[slash + 1..];
@@ -78,12 +80,12 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                             crate_id = FeatureId::CRATE;
                         }
                         let feature_id = feature_names.id(feature);
-                        enables.push(CrateFeature {
+                        crate_feature_vec.push(CrateFeature {
                             crate_id: CrateId(crate_id.0),
                             feature_id,
                         });
                     }
-                    features.push((feature_id, enables));
+                    features.push((feature_id, enables, weak_enables));
                 }
             }
             releases.push(Release {
@@ -141,31 +143,35 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     let mut feature_names = mem::take(&mut *feature_names.borrow_mut());
     let mut feature_buffer = Vec::new();
     for (release, mut features) in releases.iter_mut().zip(release_features) {
-        for (feature, enables) in &mut features {
-            for feature in &mut *enables {
-                let feature_id = FeatureId(feature.crate_id.0);
-                feature.crate_id = if feature_id == FeatureId::CRATE {
-                    release.crate_id
-                } else if let Some(crate_id) = dep_renames_resolve.get(&(release.id, feature_id)) {
-                    *crate_id
-                } else if let Some(crate_id) = {
-                    let name = feature_names.name(feature_id);
-                    crates.id(name)
-                } {
-                    crate_id
-                } else {
-                    bail!(
-                        "{} v{} depends on {} which is not found",
-                        crates.name(release.crate_id).unwrap(),
-                        release.num,
-                        feature_names.name(feature_id),
-                    );
-                };
+        for (feature, enables, weak_enables) in &mut features {
+            for crate_features in [&mut *enables, &mut *weak_enables] {
+                for feature in crate_features {
+                    let feature_id = FeatureId(feature.crate_id.0);
+                    feature.crate_id = if feature_id == FeatureId::CRATE {
+                        release.crate_id
+                    } else if let Some(crate_id) =
+                        dep_renames_resolve.get(&(release.id, feature_id))
+                    {
+                        *crate_id
+                    } else if let Some(crate_id) = {
+                        let name = feature_names.name(feature_id);
+                        crates.id(name)
+                    } {
+                        crate_id
+                    } else {
+                        bail!(
+                            "{} v{} depends on {} which is not found",
+                            crates.name(release.crate_id).unwrap(),
+                            release.num,
+                            feature_names.name(feature_id),
+                        );
+                    };
+                }
             }
             feature_buffer.push(FeatureEnables {
                 id: *feature,
                 enables: Slice::new(enables),
-                weak_enables: Slice::new(&[]),
+                weak_enables: Slice::new(weak_enables),
             });
         }
         release.features = Slice::new(&feature_buffer);
