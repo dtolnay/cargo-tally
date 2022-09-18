@@ -311,6 +311,8 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                         rel.features
                             .into_iter()
                             .flat_map(move |feature| {
+                                // TODO: also handle `weak_enables`
+                                // https://github.com/dtolnay/cargo-tally/issues/56
                                 feature.enables.into_iter().filter_map(move |crate_feature| {
                                     if crate_feature.crate_id == crate_id {
                                         None
