@@ -165,6 +165,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             feature_buffer.push(FeatureEnables {
                 id: *feature,
                 enables: Slice::new(enables),
+                weak_enables: Slice::new(&[]),
             });
         }
         release.features = Slice::new(&feature_buffer);

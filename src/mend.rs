@@ -94,6 +94,7 @@ pub(crate) fn mend(db_dump: &mut DbDump, crates: &CrateMap) {
                     feature_id: db_dump.features.id("futures"),
                 },
             ]),
+            weak_enables: Slice::new(&[]),
         }]);
 
         push_release({

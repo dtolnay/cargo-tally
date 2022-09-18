@@ -17,6 +17,7 @@ impl FeatureId {
 pub struct FeatureEnables {
     pub id: FeatureId,
     pub enables: Slice<CrateFeature>,
+    pub weak_enables: Slice<CrateFeature>,
 }
 
 #[derive(Copy, Clone, Debug)]
