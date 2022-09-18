@@ -42,7 +42,7 @@ use crate::arena::Slice;
 use crate::collect::{Collect, ResultCollection};
 use crate::dependency::DependencyKind;
 use crate::feature::{
-    CrateFeature, DefaultFeatures, FeatureId, FeatureIter, FeatureNames, VersionFeature,
+    DefaultFeatures, FeatureEnables, FeatureId, FeatureIter, FeatureNames, VersionFeature,
 };
 use crate::hint::TypeHint;
 use crate::id::{CrateId, DependencyId, QueryId, VersionId};
@@ -76,7 +76,7 @@ pub struct Release {
     pub crate_id: CrateId,
     pub num: Version,
     pub created_at: NaiveDateTime,
-    pub features: Slice<(FeatureId, Slice<CrateFeature>)>,
+    pub features: Slice<FeatureEnables>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -258,12 +258,13 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                         let crate_id = rel.crate_id;
                         rel.features
                             .iter()
-                            .flat_map(move |(feature_id, depends_on)| {
+                            .flat_map(move |feature| {
                                 let edge_from = VersionFeature {
                                     version_id,
-                                    feature_id,
+                                    feature_id: feature.id,
                                 };
-                                depends_on
+                                feature
+                                    .enables
                                     .into_iter()
                                     .filter_map(move |crate_feature| {
                                         if crate_feature.crate_id == crate_id {
@@ -277,7 +278,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                                         }
                                     })
                                     .chain({
-                                        if feature_id == FeatureId::DEFAULT {
+                                        if feature.id == FeatureId::DEFAULT {
                                             None
                                         } else {
                                             let edge_to = VersionFeature {
@@ -309,14 +310,14 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
                         let crate_id = rel.crate_id;
                         rel.features
                             .into_iter()
-                            .flat_map(move |(feature_id, depends_on)| {
-                                depends_on.into_iter().filter_map(move |crate_feature| {
+                            .flat_map(move |feature| {
+                                feature.enables.into_iter().filter_map(move |crate_feature| {
                                     if crate_feature.crate_id == crate_id {
                                         None
                                     } else {
                                         Some((
                                             (version_id, crate_feature.crate_id),
-                                            (feature_id, crate_feature.feature_id),
+                                            (feature.id, crate_feature.feature_id),
                                         ))
                                     }
                                 })
