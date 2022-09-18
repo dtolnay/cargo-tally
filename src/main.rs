@@ -12,6 +12,7 @@
     clippy::redundant_else,
     clippy::single_match_else,
     clippy::too_many_lines,
+    clippy::type_complexity,
     clippy::zero_prefixed_literal
 )]
 
