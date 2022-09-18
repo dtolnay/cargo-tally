@@ -59,10 +59,10 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             let mut features = Vec::new();
             if !row.features.is_empty() {
                 let mut feature_names = feature_names.borrow_mut();
-                for (feature, enables) in &row.features {
+                for (feature, raw_enables) in &row.features {
                     let feature_id = feature_names.id(feature);
-                    let mut enables_crate_features = Vec::new();
-                    for feature in enables {
+                    let mut enables = Vec::new();
+                    for feature in raw_enables {
                         let crate_id;
                         let mut feature = feature.as_str();
                         if let Some(slash) = feature.find('/') {
@@ -78,12 +78,12 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                             crate_id = FeatureId::CRATE;
                         }
                         let feature_id = feature_names.id(feature);
-                        enables_crate_features.push(CrateFeature {
+                        enables.push(CrateFeature {
                             crate_id: CrateId(crate_id.0),
                             feature_id,
                         });
                     }
-                    features.push((feature_id, enables_crate_features));
+                    features.push((feature_id, enables));
                 }
             }
             releases.push(Release {
