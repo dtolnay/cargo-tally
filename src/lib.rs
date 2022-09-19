@@ -193,12 +193,12 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
 }
 
 fn set_timely_worker_log(worker: &Worker<Generic>) {
-    let addr = match env::var("TIMELY_WORKER_LOG_ADDR") {
-        Ok(addr) => addr,
-        Err(_) => return,
+    let addr = match env::var_os("TIMELY_WORKER_LOG_ADDR") {
+        Some(addr) => addr,
+        None => return,
     };
 
-    let stream = match TcpStream::connect(&addr) {
+    let stream = match TcpStream::connect(addr.to_str().unwrap()) {
         Ok(stream) => stream,
         Err(err) => panic!("Could not connect logging stream to {:?}: {}", addr, err),
     };
