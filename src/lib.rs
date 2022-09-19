@@ -8,6 +8,7 @@
     clippy::cast_sign_loss,
     clippy::items_after_statements,
     clippy::iter_not_returning_iterator, // https://github.com/rust-lang/rust-clippy/issues/8285
+    clippy::match_wild_err_arm,
     clippy::mismatching_type_param_order, // https://github.com/rust-lang/rust-clippy/issues/8962
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
@@ -193,19 +194,21 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
 }
 
 fn set_timely_worker_log(worker: &Worker<Generic>) {
-    if let Ok(addr) = env::var("TIMELY_WORKER_LOG_ADDR") {
-        if let Ok(stream) = TcpStream::connect(&addr) {
-            let writer = EventWriter::new(stream);
-            let mut logger = BatchLogger::new(writer);
-            worker
-                .log_register()
-                .insert::<TimelyEvent, _>("timely", move |time, data| {
-                    logger.publish_batch(time, data);
-                });
-        } else {
-            panic!("Could not connect logging stream to: {:?}", addr);
-        }
-    }
+    let addr = match env::var("TIMELY_WORKER_LOG_ADDR") {
+        Ok(addr) => addr,
+        Err(_) => return,
+    };
+
+    let stream = match TcpStream::connect(&addr) {
+        Ok(stream) => stream,
+        Err(_) => panic!("Could not connect logging stream to: {:?}", addr),
+    };
+
+    let writer = EventWriter::new(stream);
+    let mut logger = BatchLogger::new(writer);
+    worker
+        .log_register()
+        .insert::<TimelyEvent, _>("timely", move |time, data| logger.publish_batch(time, data));
 }
 
 fn dataflow(
