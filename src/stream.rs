@@ -6,7 +6,7 @@ macro_rules! stream {
         differential_dataflow::collection::Collection<
             timely::dataflow::scopes::Child<
                 'a,
-                timely::worker::Worker<timely::communication::allocator::Generic>,
+                timely::worker::Worker<timely::communication::allocator::Process>,
                 crate::timestamp::NaiveDateTime,
             >,
             $d,

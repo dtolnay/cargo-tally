@@ -60,7 +60,7 @@ use std::iter::once;
 use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
-use timely::communication::allocator::{Generic, GenericBuilder, Process};
+use timely::communication::allocator::Process;
 use timely::dataflow::operators::capture::EventWriter;
 use timely::dataflow::scopes::Child;
 use timely::dataflow::Scope;
@@ -120,10 +120,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
     let results = collection.emitter();
 
-    let allocators = Process::new_vector(jobs)
-        .into_iter()
-        .map(GenericBuilder::Process)
-        .collect();
+    let allocators = Process::new_vector(jobs);
     let other = Box::new(());
     timely::communication::initialize_from(allocators, other, move |allocator| {
         let mut worker = Worker::new(WorkerConfig::default(), allocator);
@@ -195,7 +192,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     matrix
 }
 
-fn set_timely_worker_log(worker: &Worker<Generic>) {
+fn set_timely_worker_log(worker: &Worker<Process>) {
     let addr = match env::var_os("TIMELY_WORKER_LOG_ADDR") {
         Some(addr) => addr,
         None => return,
@@ -214,7 +211,7 @@ fn set_timely_worker_log(worker: &Worker<Generic>) {
 }
 
 fn dataflow(
-    scope: &mut Child<Worker<Generic>, NaiveDateTime>,
+    scope: &mut Child<Worker<Process>, NaiveDateTime>,
     queries: &mut InputSession<NaiveDateTime, Query, Present>,
     releases: &mut InputSession<NaiveDateTime, Release, Present>,
     dependencies: &mut InputSession<NaiveDateTime, Dependency, Present>,
