@@ -160,6 +160,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             releases.advance_to(rel.created_at);
             releases.update(rel, Present);
         }
+        releases.close();
 
         while worker.step_or_park(None) {}
     })
