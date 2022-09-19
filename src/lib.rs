@@ -57,6 +57,7 @@ use differential_dataflow::operators::iterate::Variable;
 use differential_dataflow::operators::{Consolidate, Join, JoinCore, Threshold};
 use std::env;
 use std::iter::once;
+use std::mem;
 use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
@@ -69,6 +70,7 @@ use timely::order::Product;
 use timely::progress::Timestamp;
 use timely::worker::{Config as WorkerConfig, Worker};
 
+#[derive(Default)]
 pub struct DbDump {
     pub releases: Vec<Release>,
     pub dependencies: Vec<Dependency>,
@@ -108,6 +110,7 @@ pub struct Predicate {
     pub req: Option<VersionReq>,
 }
 
+#[derive(Default)]
 struct Input {
     db_dump: DbDump,
     queries: Vec<Query>,
@@ -116,7 +119,7 @@ struct Input {
 pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) -> Matrix {
     let num_queries = queries.len();
     let queries = queries.to_owned();
-    let input = Mutex::new(Some(Input { db_dump, queries }));
+    let input = Mutex::new(Input { db_dump, queries });
     let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
     let results = collection.emitter();
 
@@ -141,10 +144,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             );
         });
 
-        let input = match input.lock().unwrap_or_else(PoisonError::into_inner).take() {
-            Some(input) => input,
-            None => return,
-        };
+        let input = mem::take(&mut *input.lock().unwrap_or_else(PoisonError::into_inner));
 
         for query in input.queries {
             queries.update(query, Present);
