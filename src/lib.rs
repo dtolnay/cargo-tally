@@ -55,16 +55,19 @@ use differential_dataflow::input::InputSession;
 use differential_dataflow::operators::arrange::{ArrangeByKey, ArrangeBySelf};
 use differential_dataflow::operators::iterate::Variable;
 use differential_dataflow::operators::{Consolidate, Join, JoinCore, Threshold};
+use std::env;
 use std::iter::once;
+use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
-use timely::communication::allocator::Generic;
+use timely::communication::allocator::Process;
+use timely::dataflow::operators::capture::EventWriter;
 use timely::dataflow::scopes::Child;
 use timely::dataflow::Scope;
+use timely::logging::{BatchLogger, TimelyEvent};
 use timely::order::Product;
 use timely::progress::Timestamp;
 use timely::worker::{Config as WorkerConfig, Worker};
-use timely::CommunicationConfig;
 
 pub struct DbDump {
     pub releases: Vec<Release>,
@@ -111,18 +114,18 @@ struct Input {
 }
 
 pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) -> Matrix {
-    let config = timely::Config {
-        communication: CommunicationConfig::Process(jobs),
-        worker: WorkerConfig::default(),
-    };
-
     let num_queries = queries.len();
     let queries = queries.to_owned();
     let input = Mutex::new(Some(Input { db_dump, queries }));
     let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
     let results = collection.emitter();
 
-    timely::execute(config, move |worker| {
+    let allocators = Process::new_vector(jobs);
+    let other = Box::new(());
+    timely::communication::initialize_from(allocators, other, move |allocator| {
+        let mut worker = Worker::new(WorkerConfig::default(), allocator);
+        set_timely_worker_log(&worker);
+
         let mut queries = InputSession::<NaiveDateTime, Query, Present>::new();
         let mut releases = InputSession::<NaiveDateTime, Release, Present>::new();
         let mut dependencies = InputSession::<NaiveDateTime, Dependency, Present>::new();
@@ -157,6 +160,8 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             releases.advance_to(rel.created_at);
             releases.update(rel, Present);
         }
+
+        while worker.step_or_park(None) {}
     })
     .unwrap();
 
@@ -187,8 +192,26 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     matrix
 }
 
+fn set_timely_worker_log(worker: &Worker<Process>) {
+    let addr = match env::var_os("TIMELY_WORKER_LOG_ADDR") {
+        Some(addr) => addr,
+        None => return,
+    };
+
+    let stream = match TcpStream::connect(addr.to_str().unwrap()) {
+        Ok(stream) => stream,
+        Err(err) => panic!("Could not connect logging stream to {:?}: {}", addr, err),
+    };
+
+    worker.log_register().insert::<TimelyEvent, _>("timely", {
+        let writer = EventWriter::new(stream);
+        let mut logger = BatchLogger::new(writer);
+        move |time, data| logger.publish_batch(time, data)
+    });
+}
+
 fn dataflow(
-    scope: &mut Child<Worker<Generic>, NaiveDateTime>,
+    scope: &mut Child<Worker<Process>, NaiveDateTime>,
     queries: &mut InputSession<NaiveDateTime, Query, Present>,
     releases: &mut InputSession<NaiveDateTime, Release, Present>,
     dependencies: &mut InputSession<NaiveDateTime, Dependency, Present>,
