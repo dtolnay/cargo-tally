@@ -55,12 +55,16 @@ use differential_dataflow::input::InputSession;
 use differential_dataflow::operators::arrange::{ArrangeByKey, ArrangeBySelf};
 use differential_dataflow::operators::iterate::Variable;
 use differential_dataflow::operators::{Consolidate, Join, JoinCore, Threshold};
+use std::env;
 use std::iter::once;
+use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
 use timely::communication::allocator::Generic;
+use timely::dataflow::operators::capture::EventWriter;
 use timely::dataflow::scopes::Child;
 use timely::dataflow::Scope;
+use timely::logging::{BatchLogger, TimelyEvent};
 use timely::order::Product;
 use timely::progress::Timestamp;
 use timely::worker::{Config as WorkerConfig, Worker};
@@ -111,18 +115,29 @@ struct Input {
 }
 
 pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) -> Matrix {
-    let config = timely::Config {
-        communication: CommunicationConfig::Process(jobs),
-        worker: WorkerConfig::default(),
-    };
-
     let num_queries = queries.len();
     let queries = queries.to_owned();
     let input = Mutex::new(Some(Input { db_dump, queries }));
     let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
     let results = collection.emitter();
 
-    timely::execute(config, move |worker| {
+    let (allocators, other) = CommunicationConfig::Process(jobs).try_build().unwrap();
+    timely::communication::initialize_from(allocators, other, move |allocator| {
+        let mut worker = Worker::new(WorkerConfig::default(), allocator);
+        if let Ok(addr) = env::var("TIMELY_WORKER_LOG_ADDR") {
+            if let Ok(stream) = TcpStream::connect(&addr) {
+                let writer = EventWriter::new(stream);
+                let mut logger = BatchLogger::new(writer);
+                worker
+                    .log_register()
+                    .insert::<TimelyEvent, _>("timely", move |time, data| {
+                        logger.publish_batch(time, data);
+                    });
+            } else {
+                panic!("Could not connect logging stream to: {:?}", addr);
+            }
+        }
+
         let mut queries = InputSession::<NaiveDateTime, Query, Present>::new();
         let mut releases = InputSession::<NaiveDateTime, Release, Present>::new();
         let mut dependencies = InputSession::<NaiveDateTime, Dependency, Present>::new();
@@ -157,6 +172,8 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             releases.advance_to(rel.created_at);
             releases.update(rel, Present);
         }
+
+        while worker.step_or_park(None) {}
     })
     .unwrap();
 
