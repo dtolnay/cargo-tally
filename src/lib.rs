@@ -60,7 +60,7 @@ use std::iter::once;
 use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::{Mutex, PoisonError};
-use timely::communication::allocator::Generic;
+use timely::communication::allocator::{Generic, GenericBuilder, Process};
 use timely::dataflow::operators::capture::EventWriter;
 use timely::dataflow::scopes::Child;
 use timely::dataflow::Scope;
@@ -68,7 +68,6 @@ use timely::logging::{BatchLogger, TimelyEvent};
 use timely::order::Product;
 use timely::progress::Timestamp;
 use timely::worker::{Config as WorkerConfig, Worker};
-use timely::CommunicationConfig;
 
 pub struct DbDump {
     pub releases: Vec<Release>,
@@ -121,7 +120,11 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
     let results = collection.emitter();
 
-    let (allocators, other) = CommunicationConfig::Process(jobs).try_build().unwrap();
+    let allocators = Process::new_vector(jobs)
+        .into_iter()
+        .map(GenericBuilder::Process)
+        .collect();
+    let other = Box::new(());
     timely::communication::initialize_from(allocators, other, move |allocator| {
         let mut worker = Worker::new(WorkerConfig::default(), allocator);
         set_timely_worker_log(&worker);
