@@ -124,19 +124,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     let (allocators, other) = CommunicationConfig::Process(jobs).try_build().unwrap();
     timely::communication::initialize_from(allocators, other, move |allocator| {
         let mut worker = Worker::new(WorkerConfig::default(), allocator);
-        if let Ok(addr) = env::var("TIMELY_WORKER_LOG_ADDR") {
-            if let Ok(stream) = TcpStream::connect(&addr) {
-                let writer = EventWriter::new(stream);
-                let mut logger = BatchLogger::new(writer);
-                worker
-                    .log_register()
-                    .insert::<TimelyEvent, _>("timely", move |time, data| {
-                        logger.publish_batch(time, data);
-                    });
-            } else {
-                panic!("Could not connect logging stream to: {:?}", addr);
-            }
-        }
+        set_timely_worker_log(&worker);
 
         let mut queries = InputSession::<NaiveDateTime, Query, Present>::new();
         let mut releases = InputSession::<NaiveDateTime, Release, Present>::new();
@@ -202,6 +190,22 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
         matrix.push(time, values);
     }
     matrix
+}
+
+fn set_timely_worker_log(worker: &Worker<Generic>) {
+    if let Ok(addr) = env::var("TIMELY_WORKER_LOG_ADDR") {
+        if let Ok(stream) = TcpStream::connect(&addr) {
+            let writer = EventWriter::new(stream);
+            let mut logger = BatchLogger::new(writer);
+            worker
+                .log_register()
+                .insert::<TimelyEvent, _>("timely", move |time, data| {
+                    logger.publish_batch(time, data);
+                });
+        } else {
+            panic!("Could not connect logging stream to: {:?}", addr);
+        }
+    }
 }
 
 fn dataflow(
