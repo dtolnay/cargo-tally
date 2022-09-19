@@ -243,7 +243,12 @@ fn dataflow(
     // releases that are the most recent of their crate
     type most_recent_crate_version<'a> = stream![VersionId; isize];
     let most_recent_crate_version: most_recent_crate_version = releases
-        .map(|rel| (rel.crate_id, (rel.num.pre.is_empty(), rel.created_at, rel.id)))
+        .map(|rel| {
+            (
+                rel.crate_id,
+                (rel.num.pre.is_empty(), rel.created_at, rel.id),
+            )
+        })
         .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
         .max_by_key()
         .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
@@ -299,12 +304,13 @@ fn dataflow(
                 )),
                 DependencyKind::Dev => None,
             })
-            .KV::<(CrateId, VersionReq), (VersionId, FeatureId, DefaultFeatures, Slice<FeatureId>)>()
+            .KV::<(CrateId, VersionReq), (VersionId, FeatureId, DefaultFeatures, Slice<FeatureId>)>(
+            )
             .join_core(
                 &resolved,
                 |(_crate_id, _req),
-                    (version_id, feature_id, default_features, features),
-                    resolved_version_id| {
+                 (version_id, feature_id, default_features, features),
+                 resolved_version_id| {
                     let edge_from = VersionFeature {
                         version_id: *version_id,
                         feature_id: *feature_id,
@@ -321,68 +327,68 @@ fn dataflow(
             );
 
         // dependency edges from crate feature enabling other feature of same crate
-        let feature_intracrate_edges: dependency_edges = releases
-            .explode(|rel| {
-                let version_id = rel.id;
-                let crate_id = rel.crate_id;
-                rel.features
-                    .iter()
-                    .flat_map(move |feature| {
-                        let edge_from = VersionFeature {
-                            version_id,
-                            feature_id: feature.id,
-                        };
-                        feature
-                            .enables
-                            .into_iter()
-                            .filter_map(move |crate_feature| {
-                                if crate_feature.crate_id == crate_id {
-                                    let edge_to = VersionFeature {
-                                        version_id,
-                                        feature_id: crate_feature.feature_id,
-                                    };
-                                    Some((edge_from, edge_to))
-                                } else {
-                                    None
-                                }
-                            })
-                            .chain({
-                                if feature.id == FeatureId::DEFAULT {
-                                    None
-                                } else {
-                                    let edge_to = VersionFeature {
-                                        version_id,
-                                        feature_id: FeatureId::CRATE,
-                                    };
-                                    Some((edge_from, edge_to))
-                                }
-                            })
-                    })
-                    .chain({
-                        let edge_from = VersionFeature {
-                            version_id,
-                            feature_id: FeatureId::DEFAULT,
-                        };
-                        let edge_to = VersionFeature {
-                            version_id,
-                            feature_id: FeatureId::CRATE,
-                        };
-                        once((edge_from, edge_to))
-                    })
-                    .map(|(edge_from, edge_to)| ((edge_from, edge_to), 1))
-            });
+        let feature_intracrate_edges: dependency_edges = releases.explode(|rel| {
+            let version_id = rel.id;
+            let crate_id = rel.crate_id;
+            rel.features
+                .iter()
+                .flat_map(move |feature| {
+                    let edge_from = VersionFeature {
+                        version_id,
+                        feature_id: feature.id,
+                    };
+                    feature
+                        .enables
+                        .into_iter()
+                        .filter_map(move |crate_feature| {
+                            if crate_feature.crate_id == crate_id {
+                                let edge_to = VersionFeature {
+                                    version_id,
+                                    feature_id: crate_feature.feature_id,
+                                };
+                                Some((edge_from, edge_to))
+                            } else {
+                                None
+                            }
+                        })
+                        .chain({
+                            if feature.id == FeatureId::DEFAULT {
+                                None
+                            } else {
+                                let edge_to = VersionFeature {
+                                    version_id,
+                                    feature_id: FeatureId::CRATE,
+                                };
+                                Some((edge_from, edge_to))
+                            }
+                        })
+                })
+                .chain({
+                    let edge_from = VersionFeature {
+                        version_id,
+                        feature_id: FeatureId::DEFAULT,
+                    };
+                    let edge_to = VersionFeature {
+                        version_id,
+                        feature_id: FeatureId::CRATE,
+                    };
+                    once((edge_from, edge_to))
+                })
+                .map(|(edge_from, edge_to)| ((edge_from, edge_to), 1))
+        });
 
         // dependency edges from crate feature enabling feature of other crate
         let feature_dependency_edges: dependency_edges = releases
             .flat_map(|rel| {
                 let version_id = rel.id;
                 let crate_id = rel.crate_id;
-                rel.features
-                    .into_iter()
-                    .flat_map(move |feature| {
-                        // TODO: also handle `weak_enables`
-                        // https://github.com/dtolnay/cargo-tally/issues/56
-                        feature.enables.into_iter().filter_map(move |crate_feature| {
+                rel.features.into_iter().flat_map(move |feature| {
+                    // TODO: also handle `weak_enables`
+                    // https://github.com/dtolnay/cargo-tally/issues/56
+                    feature
+                        .enables
+                        .into_iter()
+                        .filter_map(move |crate_feature| {
                             if crate_feature.crate_id == crate_id {
                                 None
                             } else {
@@ -392,7 +398,7 @@ fn dataflow(
                                 ))
                             }
                         })
-                    })
+                })
             })
             .KV::<(VersionId, CrateId), (FeatureId, FeatureId)>()
             .join_map(
@@ -407,8 +413,8 @@ fn dataflow(
             .join_core(
                 &resolved,
                 |(_crate_id, _req),
-                    (from_version_id, from_feature_id, to_feature_id),
-                    to_version_id| {
+                 (from_version_id, from_feature_id, to_feature_id),
+                 to_version_id| {
                     let edge_from = VersionFeature {
                         version_id: *from_version_id,
                         feature_id: *from_feature_id,
