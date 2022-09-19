@@ -8,7 +8,6 @@
     clippy::cast_sign_loss,
     clippy::items_after_statements,
     clippy::iter_not_returning_iterator, // https://github.com/rust-lang/rust-clippy/issues/8285
-    clippy::match_wild_err_arm,
     clippy::mismatching_type_param_order, // https://github.com/rust-lang/rust-clippy/issues/8962
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
@@ -201,7 +200,7 @@ fn set_timely_worker_log(worker: &Worker<Generic>) {
 
     let stream = match TcpStream::connect(&addr) {
         Ok(stream) => stream,
-        Err(_) => panic!("Could not connect logging stream to: {:?}", addr),
+        Err(err) => panic!("Could not connect logging stream to {:?}: {}", addr, err),
     };
 
     let writer = EventWriter::new(stream);
