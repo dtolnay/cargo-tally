@@ -203,11 +203,11 @@ fn set_timely_worker_log(worker: &Worker<Generic>) {
         Err(err) => panic!("Could not connect logging stream to {:?}: {}", addr, err),
     };
 
-    let writer = EventWriter::new(stream);
-    let mut logger = BatchLogger::new(writer);
-    worker
-        .log_register()
-        .insert::<TimelyEvent, _>("timely", move |time, data| logger.publish_batch(time, data));
+    worker.log_register().insert::<TimelyEvent, _>("timely", {
+        let writer = EventWriter::new(stream);
+        let mut logger = BatchLogger::new(writer);
+        move |time, data| logger.publish_batch(time, data)
+    });
 }
 
 fn dataflow(
