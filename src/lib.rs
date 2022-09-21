@@ -51,16 +51,15 @@ use crate::max::MaxByKey;
 use crate::present::Present;
 use crate::timestamp::{Duration, NaiveDateTime};
 use crate::version::{Version, VersionReq};
+use atomic_take::AtomicTake;
 use differential_dataflow::input::InputSession;
 use differential_dataflow::operators::arrange::{ArrangeByKey, ArrangeBySelf};
 use differential_dataflow::operators::iterate::Variable;
 use differential_dataflow::operators::{Consolidate, Join, JoinCore, Threshold};
 use std::env;
 use std::iter::once;
-use std::mem;
 use std::net::TcpStream;
 use std::ops::Deref;
-use std::sync::{Mutex, PoisonError};
 use timely::communication::allocator::Process;
 use timely::dataflow::operators::capture::EventWriter;
 use timely::dataflow::scopes::Child;
@@ -119,7 +118,7 @@ struct Input {
 pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) -> Matrix {
     let num_queries = queries.len();
     let queries = queries.to_owned();
-    let input = Mutex::new(Input { db_dump, queries });
+    let input = AtomicTake::new(Input { db_dump, queries });
     let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
     let results = collection.emitter();
 
@@ -144,7 +143,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
             );
         });
 
-        let input = mem::take(&mut *input.lock().unwrap_or_else(PoisonError::into_inner));
+        let input = input.take().unwrap_or_default();
 
         for query in input.queries {
             queries.update(query, Present);
