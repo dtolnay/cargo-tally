@@ -15,8 +15,8 @@ path = "src/hidden.rs"
 
 [dependencies]
 abomonation = "0.7"
-atty = "0.2"
 anyhow = "1.0"
+atty = "0.2"
 bytesize = "1.0"
 cargo-subcommand-metadata = "0.1"
 chrono = "0.4"
