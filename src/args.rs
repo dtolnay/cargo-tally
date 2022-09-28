@@ -29,14 +29,13 @@ const TEMPLATE: &str = "\
 David Tolnay <dtolnay@gmail.com>
 https://github.com/dtolnay/cargo-tally
 
-USAGE:
+{usage-heading}
     {usage}
 
-OPTIONS:
-{options}\
+{all-args}\
 ";
 
-fn app(jobs_help: &str) -> Command {
+fn app(jobs_help: &String) -> Command {
     let mut app = Command::new("cargo-tally")
         .override_usage(USAGE)
         .help_template(TEMPLATE)
@@ -121,17 +120,17 @@ pub(crate) fn parse() -> Opt {
     }
 }
 
-fn arg_db<'help>() -> Arg<'help> {
+fn arg_db() -> Arg {
     Arg::new(DB)
         .long(DB)
-        .takes_value(true)
+        .num_args(1)
         .value_name("PATH")
         .default_value("./db-dump.tar.gz")
         .value_parser(ValueParser::path_buf())
         .help("Path to crates.io's database dump")
 }
 
-fn arg_exclude<'help>() -> Arg<'help> {
+fn arg_exclude() -> Arg {
     Arg::new(EXCLUDE)
         .long(EXCLUDE)
         .hide(true)
@@ -141,45 +140,48 @@ fn arg_exclude<'help>() -> Arg<'help> {
         .help("Ignore a dependency coming from any crates matching regex")
 }
 
-fn arg_jobs<'help>(help: &'help str) -> Arg<'help> {
+fn arg_jobs(help: &String) -> Arg {
     Arg::new(JOBS)
         .long(JOBS)
         .short('j')
-        .takes_value(true)
+        .num_args(1)
         .value_name("N")
         .value_parser(usize::from_str)
         .help(help)
 }
 
-fn arg_relative<'help>() -> Arg<'help> {
+fn arg_relative() -> Arg {
     Arg::new(RELATIVE)
         .long(RELATIVE)
+        .num_args(0)
         .help("Display as a fraction of total crates, not absolute number")
 }
 
-fn arg_title<'help>() -> Arg<'help> {
+fn arg_title() -> Arg {
     Arg::new(TITLE)
         .long(TITLE)
         .hide(true)
-        .takes_value(true)
+        .num_args(1)
         .value_name("TITLE")
         .value_parser(ValueParser::string())
         .help("Graph title")
 }
 
-fn arg_transitive<'help>() -> Arg<'help> {
+fn arg_transitive() -> Arg {
     Arg::new(TRANSITIVE)
         .long(TRANSITIVE)
+        .num_args(0)
         .help("Count transitive dependencies, not just direct dependencies")
 }
 
-fn arg_queries<'help>() -> Arg<'help> {
+fn arg_queries() -> Arg {
     Arg::new(QUERIES)
         .required(true)
-        .multiple_values(true)
+        .num_args(0..)
         .value_name("QUERIES")
         .value_parser(validate_query)
         .help("Queries")
+        .hide(true)
 }
 
 #[derive(Error, Debug)]
@@ -224,5 +226,6 @@ fn validate_query(string: &str) -> Result<String, Error> {
 
 #[test]
 fn test_cli() {
-    app("").debug_assert();
+    let jobs_help = String::new();
+    app(&jobs_help).debug_assert();
 }
