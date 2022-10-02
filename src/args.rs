@@ -100,8 +100,8 @@ pub(crate) fn parse() -> Opt {
 
     let title = matches.get_one::<String>(TITLE).map(String::clone);
 
-    let relative = matches.contains_id(RELATIVE);
-    let transitive = matches.contains_id(TRANSITIVE);
+    let relative = matches.get_flag(RELATIVE);
+    let transitive = matches.get_flag(TRANSITIVE);
 
     let queries = matches
         .get_many::<String>(QUERIES)
