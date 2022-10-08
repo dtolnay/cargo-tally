@@ -13,6 +13,7 @@
     clippy::single_match_else,
     clippy::too_many_lines,
     clippy::type_complexity,
+    clippy::uninlined_format_args,
     clippy::zero_prefixed_literal
 )]
 
