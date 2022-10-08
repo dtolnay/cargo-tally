@@ -86,8 +86,8 @@ pub(crate) struct AllocStat {
 pub(crate) fn stat() -> AllocStat {
     AllocStat {
         count: ALLOC.count.load(Ordering::Relaxed),
-        total: ByteSize::b(ALLOC.total.load(Ordering::Relaxed) as u64),
-        peak: ByteSize::b(ALLOC.peak.load(Ordering::Relaxed) as u64),
+        total: ByteSize::b(ALLOC.total.load(Ordering::Relaxed)),
+        peak: ByteSize::b(ALLOC.peak.load(Ordering::Relaxed)),
     }
 }
 
