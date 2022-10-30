@@ -1,7 +1,7 @@
 use crate::total::Total;
 use anyhow::Result;
 use cargo_tally::matrix::Matrix;
-use cargo_tally::timestamp::NaiveDateTime;
+use cargo_tally::timestamp::DateTime;
 use std::cmp;
 use std::env;
 use std::fmt::{self, Display};
@@ -15,7 +15,7 @@ pub(crate) fn graph(
     labels: &[String],
     total: Option<&Total>,
 ) -> Result<PathBuf> {
-    let now = NaiveDateTime::now();
+    let now = DateTime::now();
 
     let relative = total.is_some();
     let title = if let Some(title) = title {
@@ -51,7 +51,7 @@ pub(crate) fn graph(
                 if timestamp.subsec_nanos() == 0 {
                     secs = secs.saturating_sub(1);
                 }
-                let timestamp = NaiveDateTime::from_timestamp(secs, 0);
+                let timestamp = DateTime::from_timestamp(secs, 0);
                 data += &Row(timestamp, 0, total).to_string();
             } else if prev == Some(value) {
                 continue;
@@ -82,7 +82,7 @@ pub(crate) fn graph(
     Ok(path)
 }
 
-struct Row<'a>(NaiveDateTime, u32, Option<&'a Total>);
+struct Row<'a>(DateTime, u32, Option<&'a Total>);
 
 impl<'a> Display for Row<'a> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

@@ -7,7 +7,7 @@ macro_rules! stream {
             timely::dataflow::scopes::Child<
                 'a,
                 timely::worker::Worker<timely::communication::allocator::Process>,
-                crate::timestamp::NaiveDateTime,
+                crate::timestamp::DateTime,
             >,
             $d,
             $r,

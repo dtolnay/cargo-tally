@@ -1,4 +1,4 @@
-use crate::timestamp::NaiveDateTime;
+use crate::timestamp::DateTime;
 use ref_cast::RefCast;
 use std::fmt::{self, Debug};
 use std::iter::Copied;
@@ -7,7 +7,7 @@ use std::slice;
 
 pub struct Matrix {
     queries: usize,
-    rows: Vec<(NaiveDateTime, Vec<u32>)>,
+    rows: Vec<(DateTime, Vec<u32>)>,
 }
 
 #[derive(RefCast)]
@@ -38,13 +38,13 @@ impl Matrix {
         Iter(self.rows.iter())
     }
 
-    pub(crate) fn push(&mut self, timestamp: NaiveDateTime, data: Vec<u32>) {
+    pub(crate) fn push(&mut self, timestamp: DateTime, data: Vec<u32>) {
         self.rows.push((timestamp, data));
     }
 }
 
 impl<'a> IntoIterator for &'a Matrix {
-    type Item = (NaiveDateTime, &'a Row);
+    type Item = (DateTime, &'a Row);
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -52,10 +52,10 @@ impl<'a> IntoIterator for &'a Matrix {
     }
 }
 
-pub struct Iter<'a>(slice::Iter<'a, (NaiveDateTime, Vec<u32>)>);
+pub struct Iter<'a>(slice::Iter<'a, (DateTime, Vec<u32>)>);
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (NaiveDateTime, &'a Row);
+    type Item = (DateTime, &'a Row);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0

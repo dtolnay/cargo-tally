@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveTime, Utc};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use differential_dataflow::lattice::Lattice;
 use std::cmp;
 use std::fmt::{self, Debug, Display};
@@ -7,19 +7,19 @@ use timely::progress::timestamp::{PathSummary, Refines, Timestamp};
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct NaiveDateTime(chrono::NaiveDateTime);
+pub struct DateTime(chrono::DateTime<Utc>);
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Duration(chrono::Duration);
 
-impl NaiveDateTime {
+impl DateTime {
     pub fn new(date: NaiveDate, time: NaiveTime) -> Self {
-        NaiveDateTime(chrono::NaiveDateTime::new(date, time))
+        DateTime(Utc.from_utc_datetime(&NaiveDateTime::new(date, time)))
     }
 
     pub fn now() -> Self {
-        NaiveDateTime(Utc::now().naive_utc())
+        DateTime(Utc::now())
     }
 
     pub fn seconds(&self) -> i64 {
@@ -35,25 +35,25 @@ impl NaiveDateTime {
     }
 
     pub fn from_timestamp(secs: i64, nanos: u32) -> Self {
-        NaiveDateTime(chrono::NaiveDateTime::from_timestamp(secs, nanos))
+        DateTime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(secs, nanos)))
     }
 }
 
-impl From<chrono::NaiveDateTime> for NaiveDateTime {
-    fn from(naive_date_time: chrono::NaiveDateTime) -> Self {
-        NaiveDateTime(naive_date_time)
+impl From<chrono::DateTime<Utc>> for DateTime {
+    fn from(date_time: chrono::DateTime<Utc>) -> Self {
+        DateTime(date_time)
     }
 }
 
-impl Timestamp for NaiveDateTime {
+impl Timestamp for DateTime {
     type Summary = Duration;
 
     fn minimum() -> Self {
-        NaiveDateTime(chrono::NaiveDateTime::from_timestamp(0, 0))
+        Self::from_timestamp(0, 0)
     }
 }
 
-impl Lattice for NaiveDateTime {
+impl Lattice for DateTime {
     fn join(&self, other: &Self) -> Self {
         cmp::max(*self, *other)
     }
@@ -63,7 +63,7 @@ impl Lattice for NaiveDateTime {
     }
 }
 
-impl PartialOrder for NaiveDateTime {
+impl PartialOrder for DateTime {
     fn less_than(&self, other: &Self) -> bool {
         self < other
     }
@@ -73,11 +73,11 @@ impl PartialOrder for NaiveDateTime {
     }
 }
 
-impl TotalOrder for NaiveDateTime {}
+impl TotalOrder for DateTime {}
 
-impl PathSummary<NaiveDateTime> for Duration {
-    fn results_in(&self, src: &NaiveDateTime) -> Option<NaiveDateTime> {
-        src.0.checked_add_signed(self.0).map(NaiveDateTime)
+impl PathSummary<DateTime> for Duration {
+    fn results_in(&self, src: &DateTime) -> Option<DateTime> {
+        src.0.checked_add_signed(self.0).map(DateTime)
     }
 
     fn followed_by(&self, other: &Self) -> Option<Self> {
@@ -85,7 +85,7 @@ impl PathSummary<NaiveDateTime> for Duration {
     }
 }
 
-impl Refines<()> for NaiveDateTime {
+impl Refines<()> for DateTime {
     fn to_inner(_other: ()) -> Self {
         Self::minimum()
     }
@@ -107,19 +107,19 @@ impl PartialOrder for Duration {
     }
 }
 
-impl Default for NaiveDateTime {
+impl Default for DateTime {
     fn default() -> Self {
         Self::minimum()
     }
 }
 
-impl Display for NaiveDateTime {
+impl Display for DateTime {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(&self.0, formatter)
     }
 }
 
-impl Debug for NaiveDateTime {
+impl Debug for DateTime {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         Debug::fmt(&self.0, formatter)
     }

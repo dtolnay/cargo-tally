@@ -49,7 +49,7 @@ use crate::id::{CrateId, DependencyId, QueryId, VersionId};
 use crate::matrix::Matrix;
 use crate::max::MaxByKey;
 use crate::present::Present;
-use crate::timestamp::{Duration, NaiveDateTime};
+use crate::timestamp::{DateTime, Duration};
 use crate::version::{Version, VersionReq};
 use atomic_take::AtomicTake;
 use differential_dataflow::input::InputSession;
@@ -81,7 +81,7 @@ pub struct Release {
     pub id: VersionId,
     pub crate_id: CrateId,
     pub num: Version,
-    pub created_at: NaiveDateTime,
+    pub created_at: DateTime,
     pub features: Slice<FeatureEnables>,
 }
 
@@ -119,7 +119,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     let num_queries = queries.len();
     let queries = queries.to_owned();
     let input = AtomicTake::new(Input { db_dump, queries });
-    let collection = ResultCollection::<(QueryId, NaiveDateTime, isize)>::new();
+    let collection = ResultCollection::<(QueryId, DateTime, isize)>::new();
     let results = collection.emitter();
 
     let allocators = Process::new_vector(jobs);
@@ -128,9 +128,9 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
         let mut worker = Worker::new(WorkerConfig::default(), allocator);
         set_timely_worker_log(&worker);
 
-        let mut queries = InputSession::<NaiveDateTime, Query, Present>::new();
-        let mut releases = InputSession::<NaiveDateTime, Release, Present>::new();
-        let mut dependencies = InputSession::<NaiveDateTime, Dependency, Present>::new();
+        let mut queries = InputSession::<DateTime, Query, Present>::new();
+        let mut releases = InputSession::<DateTime, Release, Present>::new();
+        let mut dependencies = InputSession::<DateTime, Dependency, Present>::new();
 
         worker.dataflow(|scope| {
             dataflow(
@@ -165,7 +165,7 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
     })
     .unwrap();
 
-    let mut time = NaiveDateTime::minimum();
+    let mut time = DateTime::minimum();
     let mut values = vec![0u32; num_queries];
     let mut matrix = Matrix::new(num_queries);
     collection.sort();
@@ -211,12 +211,12 @@ fn set_timely_worker_log(worker: &Worker<Process>) {
 }
 
 fn dataflow(
-    scope: &mut Child<Worker<Process>, NaiveDateTime>,
-    queries: &mut InputSession<NaiveDateTime, Query, Present>,
-    releases: &mut InputSession<NaiveDateTime, Release, Present>,
-    dependencies: &mut InputSession<NaiveDateTime, Dependency, Present>,
+    scope: &mut Child<Worker<Process>, DateTime>,
+    queries: &mut InputSession<DateTime, Query, Present>,
+    releases: &mut InputSession<DateTime, Release, Present>,
+    dependencies: &mut InputSession<DateTime, Dependency, Present>,
     transitive: bool,
-    results: &Emitter<(QueryId, NaiveDateTime, isize)>,
+    results: &Emitter<(QueryId, DateTime, isize)>,
 ) {
     type queries<'a> = stream![Query; Present];
     let queries: queries = queries.to_collection(scope);
@@ -272,9 +272,9 @@ fn dataflow(
                 (rel.num.pre.is_empty(), rel.created_at, rel.id),
             )
         })
-        .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
+        .KV::<CrateId, (bool, DateTime, VersionId)>()
         .max_by_key()
-        .KV::<CrateId, (bool, NaiveDateTime, VersionId)>()
+        .KV::<CrateId, (bool, DateTime, VersionId)>()
         .map(|(_crate_id, (_not_prerelease, _created_at, version_id))| version_id);
     let most_recent_crate_version = most_recent_crate_version.arrange_by_self();
 
