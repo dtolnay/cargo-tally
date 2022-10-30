@@ -22,7 +22,7 @@ bytesize = "1.0"
 cargo-subcommand-metadata = "0.1"
 chrono = "0.4"
 clap = { version = "4", features = ["deprecated"] }
-db-dump = "0.3.9"
+db-dump = "0.4"
 differential-dataflow = { version = "0.12", default-features = false }
 minipre = "0.2"
 num_cpus = "1.0"

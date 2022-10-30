@@ -39,9 +39,9 @@ impl NaiveDateTime {
     }
 }
 
-impl From<chrono::NaiveDateTime> for NaiveDateTime {
-    fn from(naive_date_time: chrono::NaiveDateTime) -> Self {
-        NaiveDateTime(naive_date_time)
+impl From<chrono::DateTime<Utc>> for NaiveDateTime {
+    fn from(naive_date_time: chrono::DateTime<Utc>) -> Self {
+        NaiveDateTime(naive_date_time.naive_utc())
     }
 }
 
