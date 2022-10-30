@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveTime, Utc};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use differential_dataflow::lattice::Lattice;
 use std::cmp;
 use std::fmt::{self, Debug, Display};
@@ -7,7 +7,7 @@ use timely::progress::timestamp::{PathSummary, Refines, Timestamp};
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct DateTime(chrono::NaiveDateTime);
+pub struct DateTime(chrono::DateTime<Utc>);
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(transparent)]
@@ -15,11 +15,11 @@ pub struct Duration(chrono::Duration);
 
 impl DateTime {
     pub fn new(date: NaiveDate, time: NaiveTime) -> Self {
-        DateTime(chrono::NaiveDateTime::new(date, time))
+        DateTime(Utc.from_utc_datetime(&NaiveDateTime::new(date, time)))
     }
 
     pub fn now() -> Self {
-        DateTime(Utc::now().naive_utc())
+        DateTime(Utc::now())
     }
 
     pub fn seconds(&self) -> i64 {
@@ -35,13 +35,13 @@ impl DateTime {
     }
 
     pub fn from_timestamp(secs: i64, nanos: u32) -> Self {
-        DateTime(chrono::NaiveDateTime::from_timestamp(secs, nanos))
+        DateTime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(secs, nanos)))
     }
 }
 
 impl From<chrono::DateTime<Utc>> for DateTime {
-    fn from(naive_date_time: chrono::DateTime<Utc>) -> Self {
-        DateTime(naive_date_time.naive_utc())
+    fn from(date_time: chrono::DateTime<Utc>) -> Self {
+        DateTime(date_time)
     }
 }
 
@@ -49,7 +49,7 @@ impl Timestamp for DateTime {
     type Summary = Duration;
 
     fn minimum() -> Self {
-        DateTime(chrono::NaiveDateTime::from_timestamp(0, 0))
+        Self::from_timestamp(0, 0)
     }
 }
 
