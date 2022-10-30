@@ -1,9 +1,9 @@
-use cargo_tally::timestamp::NaiveDateTime;
+use cargo_tally::timestamp::DateTime;
 use cargo_tally::Release;
 use std::collections::BTreeSet as Set;
 
 pub(crate) struct Total {
-    times: Vec<NaiveDateTime>,
+    times: Vec<DateTime>,
 }
 
 impl Total {
@@ -18,7 +18,7 @@ impl Total {
         Total { times }
     }
 
-    pub(crate) fn eval(&self, time: NaiveDateTime) -> u32 {
+    pub(crate) fn eval(&self, time: DateTime) -> u32 {
         match self.times.binary_search(&time) {
             Ok(i) => 1 + i as u32,
             Err(i) => i as u32,

@@ -53,6 +53,6 @@ do_not_abomonate!(crate::id::QueryId);
 do_not_abomonate!(crate::id::VersionId);
 do_not_abomonate!(crate::max::Max<T>);
 do_not_abomonate!(crate::present::Present);
-do_not_abomonate!(crate::timestamp::NaiveDateTime);
+do_not_abomonate!(crate::timestamp::DateTime);
 do_not_abomonate!(crate::version::Version);
 do_not_abomonate!(crate::version::VersionReq);

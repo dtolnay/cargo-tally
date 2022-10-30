@@ -60,7 +60,7 @@ macro_rules! datetime {
             $min >= 0 && $min <= 59,
             $sec >= 0 && $sec <= 60,
         }
-        cargo_tally::timestamp::NaiveDateTime::new(
+        cargo_tally::timestamp::DateTime::new(
             chrono::NaiveDate::from_ymd($year, month_number!($month), $day),
             chrono::NaiveTime::from_hms($hour, $min, $sec),
         )

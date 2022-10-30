@@ -7,7 +7,7 @@ use cargo_tally::feature::{
     CrateFeature, DefaultFeatures, FeatureEnables, FeatureId, FeatureNames,
 };
 use cargo_tally::id::{CrateId, DependencyId, VersionId};
-use cargo_tally::timestamp::NaiveDateTime;
+use cargo_tally::timestamp::DateTime;
 use cargo_tally::version::{Version, VersionReq};
 use cargo_tally::{DbDump, Dependency, Release};
 use db_dump::crate_owners::OwnerId;
@@ -92,7 +92,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                 id: VersionId::from(row.id),
                 crate_id,
                 num: Version(row.num),
-                created_at: NaiveDateTime::from(row.created_at),
+                created_at: DateTime::from(row.created_at),
                 features: {
                     release_features.push(features);
                     Slice::EMPTY
