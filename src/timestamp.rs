@@ -35,7 +35,7 @@ impl DateTime {
     }
 
     pub fn from_timestamp(secs: i64, nanos: u32) -> Self {
-        DateTime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(secs, nanos)))
+        DateTime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(secs, nanos).unwrap()))
     }
 }
 
