@@ -51,20 +51,16 @@ impl Ord for VersionReq {
         let mut rhs = other.comparators.iter_ref();
 
         loop {
-            let x = match lhs.next() {
-                None => {
-                    return if rhs.next().is_none() {
-                        Ordering::Equal
-                    } else {
-                        Ordering::Less
-                    };
-                }
-                Some(val) => val,
+            let  Some(x) = lhs.next() else {
+                return if rhs.next().is_none() {
+                    Ordering::Equal
+                } else {
+                    Ordering::Less
+                };
             };
 
-            let y = match rhs.next() {
-                None => return Ordering::Greater,
-                Some(val) => val,
+            let Some(y) = rhs.next() else {
+                return Ordering::Greater;
             };
 
             match (x.op as usize, x.major, x.minor, x.patch, &x.pre).cmp(&(
@@ -256,20 +252,16 @@ fn matches_caret(cmp: &Comparator, ver: &Version) -> bool {
         return false;
     }
 
-    let minor = match cmp.minor {
-        None => return true,
-        Some(minor) => minor,
+    let Some(minor) = cmp.minor else {
+        return true;
     };
 
-    let patch = match cmp.patch {
-        None => {
-            return if cmp.major > 0 {
-                ver.minor >= minor
-            } else {
-                ver.minor == minor
-            };
-        }
-        Some(patch) => patch,
+    let Some(patch) = cmp.patch else {
+        return if cmp.major > 0 {
+            ver.minor >= minor
+        } else {
+            ver.minor == minor
+        };
     };
 
     if cmp.major > 0 {

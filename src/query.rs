@@ -36,12 +36,9 @@ fn parse_predicates(string: &str, crates: &CrateMap) -> Result<Slice<Predicate>>
         match predicate {
             RawPredicate::Crate(predicate) => predicates.push(predicate),
             RawPredicate::User(username) => {
-                let user_id = match crates.users.get(username) {
-                    Some(user_id) => user_id,
-                    None => {
-                        let kind = if username.is_team() { "team" } else { "user" };
-                        bail!("no crates owned by {} @{}", kind, username);
-                    }
+                let Some(user_id) = crates.users.get(username) else {
+                    let kind = if username.is_team() { "team" } else { "user" };
+                    bail!("no crates owned by {} @{}", kind, username);
                 };
                 predicates.extend(
                     crates
@@ -135,9 +132,8 @@ impl<'a> Iterator for IterPredicates<'a> {
             (predicate, None)
         };
 
-        let crate_id = match self.crates.id(name) {
-            Some(crate_id) => crate_id,
-            None => return Some(Err(format_err!("no crate named {}", name))),
+        let Some(crate_id) = self.crates.id(name) else {
+            return Some(Err(format_err!("no crate named {}", name)));
         };
 
         Some(Ok(RawPredicate::Crate(Predicate { crate_id, req })))
