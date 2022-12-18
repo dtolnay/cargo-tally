@@ -295,7 +295,7 @@ fn dataflow(
                     None => true,
                     Some(req) => req.matches(version),
                 };
-                matches.then(|| (*version_id, *query_id))
+                matches.then_some((*version_id, *query_id))
             },
         );
 
