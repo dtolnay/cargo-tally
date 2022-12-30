@@ -91,26 +91,26 @@
 #endif
     yAxis.tickFormat(yFormatter);
 
-    var legend = svg.selectAll('g')
+    var legend = svg.selectAll("g")
       .data(data)
       .enter()
-      .append('g')
-      .attr('class', 'legend');
+      .append("g")
+      .attr("class", "legend");
 
-    legend.append('rect')
-      .attr('x', 50)
-      .attr('y', function(d, i) {
+    legend.append("rect")
+      .attr("x", 50)
+      .attr("y", function(d, i) {
         return i * 20;
       })
-      .attr('width', 10)
-      .attr('height', 10)
-      .style('fill', function(d) {
+      .attr("width", 10)
+      .attr("height", 10)
+      .style("fill", function(d) {
         return color(d.name);
       });
 
-    legend.append('text')
-      .attr('x', 64)
-      .attr('y', function(d, i) {
+    legend.append("text")
+      .attr("x", 64)
+      .attr("y", function(d, i) {
         return (i * 20) + 9;
       })
       .text(function(d) {
@@ -173,9 +173,9 @@
       .style("stroke-width", "1px")
       .style("opacity", "0");
 
-    var lines = document.getElementsByClassName('line');
+    var lines = document.getElementsByClassName("line");
 
-    var mousePerLine = mouseG.selectAll('.mouse-per-line')
+    var mousePerLine = mouseG.selectAll(".mouse-per-line")
       .data(data)
       .enter()
       .append("g")
@@ -194,12 +194,12 @@
       .attr("transform", "translate(-6,-4)")
       .style("text-anchor", "end");
 
-    mouseG.append('svg:rect') // append a rect to catch mouse movements on canvas
-      .attr('width', width) // can't catch mouse events on a g element
-      .attr('height', height)
-      .attr('fill', 'none')
-      .attr('pointer-events', 'all')
-      .on('mouseout', function() { // on mouse out hide line, circles and text
+    mouseG.append("svg:rect") // append a rect to catch mouse movements on canvas
+      .attr("width", width) // can't catch mouse events on a g element
+      .attr("height", height)
+      .attr("fill", "none")
+      .attr("pointer-events", "all")
+      .on("mouseout", function() { // on mouse out hide line, circles and text
         d3.select(".mouse-line")
           .style("opacity", "0");
         d3.selectAll(".mouse-per-line circle")
@@ -207,7 +207,7 @@
         d3.selectAll(".mouse-per-line text")
           .style("opacity", "0");
       })
-      .on('mouseover', function() { // on mouse in show line, circles and text
+      .on("mouseover", function() { // on mouse in show line, circles and text
         d3.select(".mouse-line")
           .style("opacity", "1");
         d3.selectAll(".mouse-per-line circle")
@@ -215,7 +215,7 @@
         d3.selectAll(".mouse-per-line text")
           .style("opacity", "1");
       })
-      .on('mousemove', function(event) { // mouse moving over canvas
+      .on("mousemove", function(event) { // mouse moving over canvas
         var mouse = d3.pointer(event);
         d3.select(".mouse-line")
           .attr("d", function() {
@@ -232,7 +232,7 @@
             var interp = below.time == above.time ? 0 : (xDate - below.time) / (above.time - below.time);
             var val = d3.interpolateNumber(below.edges, above.edges)(interp);
 
-            d3.select(this).select('text')
+            d3.select(this).select("text")
               .text(tooltipFormatter(d.values[idx == 0 ? 0 : idx - 1].edges));
 
             return `translate(${mouse[0]},${y(val)})`;
