@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body {
       font: 14px sans-serif;
@@ -215,8 +215,8 @@
         d3.selectAll(".mouse-per-line text")
           .style("opacity", "1");
       })
-      .on('mousemove', function() { // mouse moving over canvas
-        var mouse = d3.mouse(this);
+      .on('mousemove', function(event) { // mouse moving over canvas
+        var mouse = d3.pointer(event);
         d3.select(".mouse-line")
           .attr("d", function() {
             var d = "M" + mouse[0] + "," + height;
