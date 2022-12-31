@@ -206,8 +206,9 @@
           var val = d3.interpolateNumber(below.edges, above.edges)(interp);
 
           d3.select(this)
+            .style("opacity", below.edges ? "1" : "0")
             .select("text")
-            .text(tooltipFormatter(d.values[idx == 0 ? 0 : idx - 1].edges));
+            .text(tooltipFormatter(below.edges));
 
           return `translate(0 ${y(val)})`;
         });
