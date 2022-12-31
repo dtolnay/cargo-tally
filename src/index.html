@@ -152,14 +152,9 @@
       .style("stroke-linejoin", "round");
 
     curve.append("text")
-      .datum(function(d) {
-        return {
-          name: d.name,
-          value: d.values[d.values.length - 1],
-        };
-      })
       .attr("transform", function(d) {
-        return `translate(${x(d.value.time)} ${y(d.value.edges)})`;
+        var last = d.values[d.values.length - 1];
+        return `translate(${x(last.time)} ${y(last.edges)})`;
       })
       .attr("x", 3)
       .attr("dy", ".35em")
