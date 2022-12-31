@@ -83,6 +83,18 @@
       .append("g")
       .attr("transform", `translate(${margin.left} ${margin.top})`);
 
+    var filter = svg.append("defs")
+      .append("filter")
+      .attr("x", "0")
+      .attr("y", "0")
+      .attr("width", "1")
+      .attr("height", "1")
+      .attr("id", "solid");
+    filter.append("feFlood")
+      .attr("flood-color", "white");
+    filter.append("feComposite")
+      .attr("in", "SourceGraphic");
+
     var legend = svg.selectAll()
       .data(data)
       .enter()
@@ -161,7 +173,13 @@
     mouseG.append("path") // this is the black vertical line to follow mouse
       .style("stroke", "black")
       .style("stroke-width", "1px")
-      .attr("d", `M0 ${height} 0 0`);
+      .attr("d", `M0 ${height + xAxis.tickSize()} 0 0`);
+
+    var mouseDate = mouseG.append("text")
+      .attr("y", height + 9)
+      .attr("dy", "0.71em")
+      .attr("text-anchor", "middle")
+      .attr("filter", "url(#solid)");
 
     var mousePerLine = mouseG.selectAll()
       .data(data)
@@ -184,7 +202,7 @@
 
     svg.append("rect") // append a rect to catch mouse movements on canvas
       .attr("width", width) // can't catch mouse events on a g element
-      .attr("height", height)
+      .attr("height", height + xAxis.tickSize() + 16)
       .attr("fill", "none")
       .attr("pointer-events", "all")
       .on("mouseout", function() { // on mouse out hide line, circles and text
@@ -209,6 +227,8 @@
             .style("opacity", below.edges ? "1" : "0")
             .select("text")
             .text(tooltipFormatter(below.edges));
+
+          mouseDate.text(d3.timeFormat("%b %-d")(xDate));
 
           return `translate(0 ${y(val)})`;
         });
