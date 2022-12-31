@@ -7,15 +7,11 @@
     body {
       font: 14px sans-serif;
     }
-    .axis path,
-    .axis line {
-      fill: none;
-      stroke: #000;
+    .axis path, .axis line {
       shape-rendering: crispEdges;
     }
     .line {
       fill: none;
-      stroke: steelblue;
       stroke-width: 1.5px;
     }
     svg {
@@ -45,12 +41,6 @@
         return y(d.edges);
       });
 
-    var svg = d3.select("body").append("svg")
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
-      .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
     color.domain(data.map(function(dataset) {
       return dataset.name;
     }));
@@ -67,18 +57,13 @@
     var maxDate = d3.max(data, function(dataset) {
       return dataset.values[dataset.values.length - 1].time;
     });
-    x.domain([
-      (21 * minDate - maxDate) / 20,
-      maxDate,
-    ]);
-    y.domain([
-      0,
-      1.025 * d3.max(data, function(c) {
-        return d3.max(c.values, function(v) {
-          return v.edges;
-        });
-      })
-    ]);
+    var maxValue = d3.max(data, function(c) {
+      return d3.max(c.values, function(v) {
+        return v.edges;
+      });
+    });
+    x.domain([(21 * minDate - maxDate) / 20, maxDate]);
+    y.domain([0, 1.025 * maxValue]);
 
 #if CARGO_TALLY_RELATIVE
     // NOTE The ticks should be read only after setting the domain values on `y`
@@ -91,11 +76,17 @@
 #endif
     yAxis.tickFormat(yFormatter);
 
-    var legend = svg.selectAll("g")
+    var svg = d3.select("body")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left} ${margin.top})`);
+
+    var legend = svg.selectAll()
       .data(data)
       .enter()
-      .append("g")
-      .attr("class", "legend");
+      .append("g");
 
     legend.append("rect")
       .attr("x", 50)
@@ -119,7 +110,7 @@
 
     svg.append("g")
       .attr("class", "x axis")
-      .attr("transform", `translate(0,${height})`)
+      .attr("transform", `translate(0 ${height})`)
       .call(xAxis);
 
     svg.append("g")
@@ -133,10 +124,10 @@
       .style("text-anchor", "end")
       .text(CARGO_TALLY_TITLE);
 
-    var curve = svg.selectAll(".edges")
+    var curve = svg.selectAll()
       .data(data)
-      .enter().append("g")
-      .attr("class", "edges");
+      .enter()
+      .append("g");
 
     curve.append("path")
       .attr("class", "line")
@@ -152,11 +143,11 @@
       .datum(function(d) {
         return {
           name: d.name,
-          value: d.values[d.values.length - 1]
+          value: d.values[d.values.length - 1],
         };
       })
       .attr("transform", function(d) {
-        return `translate(${x(d.value.time)},${y(d.value.edges)})`;
+        return `translate(${x(d.value.time)} ${y(d.value.edges)})`;
       })
       .attr("x", 3)
       .attr("dy", ".35em")
@@ -165,17 +156,14 @@
       });
 
     var mouseG = svg.append("g")
-      .attr("class", "mouse-over-effects");
-
-    mouseG.append("path") // this is the black vertical line to follow mouse
-      .attr("class", "mouse-line")
-      .style("stroke", "black")
-      .style("stroke-width", "1px")
       .style("opacity", "0");
 
-    var lines = document.getElementsByClassName("line");
+    mouseG.append("path") // this is the black vertical line to follow mouse
+      .style("stroke", "black")
+      .style("stroke-width", "1px")
+      .attr("d", `M0 ${height} 0 0`);
 
-    var mousePerLine = mouseG.selectAll(".mouse-per-line")
+    var mousePerLine = mouseG.selectAll()
       .data(data)
       .enter()
       .append("g")
@@ -187,56 +175,42 @@
         return color(d.name);
       })
       .style("fill", "none")
-      .style("stroke-width", "1px")
-      .style("opacity", "0");
+      .style("stroke-width", "1px");
 
     mousePerLine.append("text")
-      .attr("transform", "translate(-6,-4)")
+      .attr("x", -6)
+      .attr("y", -4)
       .style("text-anchor", "end");
 
-    mouseG.append("svg:rect") // append a rect to catch mouse movements on canvas
+    svg.append("rect") // append a rect to catch mouse movements on canvas
       .attr("width", width) // can't catch mouse events on a g element
       .attr("height", height)
       .attr("fill", "none")
       .attr("pointer-events", "all")
       .on("mouseout", function() { // on mouse out hide line, circles and text
-        d3.select(".mouse-line")
-          .style("opacity", "0");
-        d3.selectAll(".mouse-per-line circle")
-          .style("opacity", "0");
-        d3.selectAll(".mouse-per-line text")
-          .style("opacity", "0");
+        mouseG.style("opacity", "0");
       })
       .on("mouseover", function() { // on mouse in show line, circles and text
-        d3.select(".mouse-line")
-          .style("opacity", "1");
-        d3.selectAll(".mouse-per-line circle")
-          .style("opacity", "1");
-        d3.selectAll(".mouse-per-line text")
-          .style("opacity", "1");
+        mouseG.style("opacity", "1");
       })
       .on("mousemove", function(event) { // mouse moving over canvas
         var mouse = d3.pointer(event);
-        d3.select(".mouse-line")
-          .attr("d", function() {
-            return `M${mouse[0]},${height} ${mouse[0]},0`;
-          });
+        mouseG.attr("transform", `translate(${mouse[0]} 0)`);
+        mousePerLine.attr("transform", function(d, i) {
+          var xDate = x.invert(mouse[0]);
+          var bisect = d3.bisector(function(d) { return d.time; }).right;
+          var idx = bisect(d.values, xDate);
+          var below = d.values[idx - (idx > 0)];
+          var above = d.values[idx - (idx == d.values.length)];
+          var interp = below.time == above.time ? 0 : (xDate - below.time) / (above.time - below.time);
+          var val = d3.interpolateNumber(below.edges, above.edges)(interp);
 
-        d3.selectAll(".mouse-per-line")
-          .attr("transform", function(d, i) {
-            var xDate = x.invert(mouse[0]);
-            var bisect = d3.bisector(function(d) { return d.time; }).right;
-            var idx = bisect(d.values, xDate);
-            var below = d.values[idx - (idx > 0)];
-            var above = d.values[idx - (idx == d.values.length)];
-            var interp = below.time == above.time ? 0 : (xDate - below.time) / (above.time - below.time);
-            var val = d3.interpolateNumber(below.edges, above.edges)(interp);
+          d3.select(this)
+            .select("text")
+            .text(tooltipFormatter(d.values[idx == 0 ? 0 : idx - 1].edges));
 
-            d3.select(this).select("text")
-              .text(tooltipFormatter(d.values[idx == 0 ? 0 : idx - 1].edges));
-
-            return `translate(${mouse[0]},${y(val)})`;
-          });
+          return `translate(0 ${y(val)})`;
+        });
       });
   </script>
 </body>
