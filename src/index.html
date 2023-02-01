@@ -69,7 +69,7 @@
     // NOTE The ticks should be read only after setting the domain values on `y`
     var stepSize = y.ticks()[1] - y.ticks()[0]
     var yFormatter = d3.format(`.${Math.max(0, d3.precisionFixed(stepSize) - 2)}%`);
-    var tooltipFormatter = d3.format(`.${Math.max(0, d3.precisionFixed(stepSize / 10) - 2)}%`);
+    var tooltipFormatter = d3.format(`.${Math.max(1, d3.precisionFixed(stepSize / 10) - 2)}%`);
 #else
     var yFormatter = d3.format(",");
     var tooltipFormatter = d3.format(",");
