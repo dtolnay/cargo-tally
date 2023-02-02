@@ -18,6 +18,7 @@
     clippy::ptr_as_ptr,
     clippy::significant_drop_in_scrutinee,
     clippy::too_many_lines,
+    clippy::uninlined_format_args,
     clippy::unseparated_literal_suffix
 )]
 

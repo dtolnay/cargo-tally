@@ -41,7 +41,7 @@ impl Display for Version {
 
 impl Debug for Version {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "Version({self})")
+        write!(formatter, "Version({})", self)
     }
 }
 
@@ -107,7 +107,7 @@ impl Display for VersionReq {
             if i > 0 {
                 formatter.write_str(", ")?;
             }
-            write!(formatter, "{comparator}")?;
+            write!(formatter, "{}", comparator)?;
         }
         Ok(())
     }
@@ -115,7 +115,7 @@ impl Display for VersionReq {
 
 impl Debug for VersionReq {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "VersionReq({self})")
+        write!(formatter, "VersionReq({})", self)
     }
 }
 
