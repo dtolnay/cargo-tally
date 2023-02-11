@@ -7,7 +7,7 @@ macro_rules! do_not_abomonate {
             unsafe fn entomb<W: std::io::Write>(&self, _write: &mut W) -> std::io::Result<()> {
                 unimplemented!("unexpected abomonation entomb");
             }
-            unsafe fn exhume<'a, 'b>(&'a mut self, _bytes: &'b mut [u8]) -> Option<&'b mut [u8]> {
+            unsafe fn exhume<'a>(&mut self, _bytes: &'a mut [u8]) -> Option<&'a mut [u8]> {
                 // Unwinding here is unsound because abomonation would have
                 // blitted the source bytes into the destination with dangling
                 // pointers, and is now relying on exhume to fix it up into a
