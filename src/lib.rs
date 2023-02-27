@@ -8,6 +8,7 @@
     clippy::cast_sign_loss,
     clippy::items_after_statements,
     clippy::iter_not_returning_iterator, // https://github.com/rust-lang/rust-clippy/issues/8285
+    clippy::let_underscore_untyped,
     clippy::mismatching_type_param_order, // https://github.com/rust-lang/rust-clippy/issues/8962
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
