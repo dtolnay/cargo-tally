@@ -39,7 +39,7 @@ use crate::load::load;
 use crate::log::Log;
 use crate::total::Total;
 use anyhow::Result;
-use atty::Stream;
+use is_terminal::IsTerminal;
 use std::io::{self, Write};
 use std::process;
 use std::time::Instant;
@@ -86,8 +86,8 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         );
     }
 
-    let stdout_isatty = atty::is(Stream::Stdout);
-    let stderr_isatty = atty::is(Stream::Stderr);
+    let stdout_isatty = io::stdout().is_terminal();
+    let stderr_isatty = io::stderr().is_terminal();
 
     let instant = Instant::now();
     let (mut db_dump, crates) = crate::load(&opt.db)?;
