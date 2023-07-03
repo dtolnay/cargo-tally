@@ -51,7 +51,7 @@ impl Ord for VersionReq {
         let mut rhs = other.comparators.iter_ref();
 
         loop {
-            let  Some(x) = lhs.next() else {
+            let Some(x) = lhs.next() else {
                 return if rhs.next().is_none() {
                     Ordering::Equal
                 } else {

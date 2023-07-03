@@ -196,7 +196,9 @@ pub fn run(db_dump: DbDump, jobs: usize, transitive: bool, queries: &[Query]) ->
 }
 
 fn set_timely_worker_log(worker: &Worker<Process>) {
-    let Some(addr) = env::var_os("TIMELY_WORKER_LOG_ADDR") else { return };
+    let Some(addr) = env::var_os("TIMELY_WORKER_LOG_ADDR") else {
+        return;
+    };
 
     let stream = match TcpStream::connect(addr.to_str().unwrap()) {
         Ok(stream) => stream,
