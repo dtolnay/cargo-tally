@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 #![allow(
+    clippy::arc_with_non_send_sync, // https://github.com/rust-lang/rust-clippy/issues/11076
     clippy::borrow_as_ptr,
     clippy::borrowed_box,
     clippy::cast_possible_truncation,
