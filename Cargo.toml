@@ -37,3 +37,6 @@ termcolor = "1.1"
 thiserror = "1.0"
 timely = { version = "0.12", default-features = false }
 typed-arena = "2.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
