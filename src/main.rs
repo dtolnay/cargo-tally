@@ -14,6 +14,7 @@
     clippy::too_many_lines,
     clippy::type_complexity,
     clippy::uninlined_format_args,
+    clippy::unwrap_or_default,
     clippy::zero_prefixed_literal
 )]
 
