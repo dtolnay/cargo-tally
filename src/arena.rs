@@ -1,9 +1,9 @@
 use fnv::FnvHashMap;
-use once_cell::sync::OnceCell;
 use std::any::TypeId;
 use std::fmt::{self, Debug};
 use std::iter::{Copied, FromIterator};
 use std::slice::Iter;
+use std::sync::OnceLock;
 use std::sync::{Mutex, PoisonError};
 use typed_arena::Arena;
 
@@ -69,7 +69,7 @@ where
             return Slice::EMPTY;
         }
 
-        static ARENA: OnceCell<Mutex<FnvHashMap<TypeId, Box<dyn Send>>>> = OnceCell::new();
+        static ARENA: OnceLock<Mutex<FnvHashMap<TypeId, Box<dyn Send>>>> = OnceLock::new();
 
         let mut map = ARENA
             .get_or_init(Mutex::default)
