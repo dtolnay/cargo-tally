@@ -23,6 +23,7 @@ chrono = "0.4"
 clap = { version = "4", features = ["deprecated"] }
 db-dump = "0.4"
 differential-dataflow = { version = "0.12", default-features = false }
+fnv = "1.0.7"
 is-terminal = "0.4"
 minipre = "0.2"
 num_cpus = "1.0"
