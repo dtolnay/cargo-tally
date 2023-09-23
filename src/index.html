@@ -180,7 +180,8 @@
       .data(data)
       .enter()
       .append("g")
-      .attr("class", "mouse-per-line");
+      .attr("class", "mouse-per-line")
+      .style("opacity", "0");
 
     mousePerLine.append("circle")
       .attr("r", 7)
