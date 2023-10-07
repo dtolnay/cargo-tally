@@ -7,6 +7,7 @@
     clippy::cast_precision_loss,
     clippy::cast_ptr_alignment,
     clippy::cast_sign_loss,
+    clippy::into_iter_without_iter,
     clippy::items_after_statements,
     clippy::iter_not_returning_iterator, // https://github.com/rust-lang/rust-clippy/issues/8285
     clippy::let_underscore_untyped,
