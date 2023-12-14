@@ -91,7 +91,6 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
 
     let instant = Instant::now();
     let (mut db_dump, crates) = crate::load(&opt.db)?;
-    crate::mend::mend(&mut db_dump, &crates);
     crate::filter::filter(&mut db_dump, &crates, &opt.exclude);
     db_dump.releases.sort_by_key(|v| v.created_at);
     crate::clean::clean(&mut db_dump, &crates);

@@ -186,7 +186,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
         }
     }
 
-    let db_dump = DbDump {
+    let mut db_dump = DbDump {
         releases,
         dependencies,
         features: feature_names,
@@ -195,6 +195,8 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     crates.owners = owners;
     crates.users = users;
     crates.users.extend(teams);
+
+    crate::mend::mend(&mut db_dump, &crates);
 
     Ok((db_dump, crates))
 }
