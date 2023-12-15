@@ -39,3 +39,7 @@ typed-arena = "2.0"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+
+[patch.crates-io]
+differential-dataflow = { git = "https://github.com/TimelyDataflow/differential-dataflow" }
+timely = { git = "https://github.com/TimelyDataflow/timely-dataflow" }

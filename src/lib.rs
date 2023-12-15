@@ -59,7 +59,7 @@ use atomic_take::AtomicTake;
 use differential_dataflow::input::InputSession;
 use differential_dataflow::operators::arrange::{ArrangeByKey, ArrangeBySelf};
 use differential_dataflow::operators::iterate::Variable;
-use differential_dataflow::operators::{Consolidate, Join, JoinCore, Threshold};
+use differential_dataflow::operators::{Join, JoinCore, Threshold};
 use std::env;
 use std::iter::once;
 use std::net::TcpStream;
