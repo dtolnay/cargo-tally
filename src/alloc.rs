@@ -50,26 +50,31 @@ where
         ptr
     }
 
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+    unsafe fn realloc(&self, ptr: *mut u8, old_layout: Layout, new_size: usize) -> *mut u8 {
         self.count.fetch_add(1, Ordering::Relaxed);
-        let new_ptr = self.alloc.realloc(ptr, layout, new_size);
-        let size = layout.size() as u64;
+        let new_ptr = self.alloc.realloc(ptr, old_layout, new_size);
+        let old_size = old_layout.size() as u64;
         let new_size = new_size as u64;
         if new_ptr == ptr {
-            if new_size > size {
-                self.total.fetch_add(new_size - size, Ordering::Relaxed);
-                let prev = self.current.fetch_add(new_size - size, Ordering::Relaxed);
+            if new_size > old_size {
+                self.total.fetch_add(new_size - old_size, Ordering::Relaxed);
+                let prev = self
+                    .current
+                    .fetch_add(new_size - old_size, Ordering::Relaxed);
                 self.peak
-                    .fetch_max(prev + new_size - size, Ordering::Relaxed);
+                    .fetch_max(prev + new_size - old_size, Ordering::Relaxed);
             } else {
-                self.current.fetch_sub(size - new_size, Ordering::Relaxed);
+                self.current
+                    .fetch_sub(old_size - new_size, Ordering::Relaxed);
             }
         } else {
             self.total.fetch_add(new_size, Ordering::Relaxed);
-            let prev = if new_size > size {
-                self.current.fetch_add(new_size - size, Ordering::Relaxed)
+            let prev = if new_size > old_size {
+                self.current
+                    .fetch_add(new_size - old_size, Ordering::Relaxed)
             } else {
-                self.current.fetch_sub(size - new_size, Ordering::Relaxed)
+                self.current
+                    .fetch_sub(old_size - new_size, Ordering::Relaxed)
             };
             self.peak.fetch_max(prev + new_size, Ordering::Relaxed);
         }
