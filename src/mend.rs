@@ -20,6 +20,8 @@ pub(crate) fn mend_crates(crates: &mut CrateMap) {
         "quickcheck",
         "tokio-core",
         "tokio-io",
+        "xcm",
+        "xcm-executor",
     ] {
         if crates.id(crate_name).is_none() {
             while crates.name(next_crate_id).is_some() {
@@ -756,6 +758,30 @@ pub(crate) fn mend_releases(db_dump: &mut DbDump, crates: &CrateMap) {
                 kind: DependencyKind::Normal,
             });
             release
+        });
+    }
+
+    {
+        let crate_id = crates.id("xcm").unwrap();
+
+        push_release(Release {
+            id: next_version_id(),
+            crate_id,
+            num: version!(0.0.0),
+            created_at: datetime!(9 Mar 2021 05:51:34),
+            features: Slice::EMPTY,
+        });
+    }
+
+    {
+        let crate_id = crates.id("xcm-executor").unwrap();
+
+        push_release(Release {
+            id: next_version_id(),
+            crate_id,
+            num: version!(0.0.0),
+            created_at: datetime!(9 Mar 2021 06:21:39),
+            features: Slice::EMPTY,
         });
     }
 }
