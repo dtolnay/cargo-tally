@@ -26,35 +26,40 @@ where
 {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         self.count.fetch_add(1, Ordering::Relaxed);
-        let ptr = self.alloc.alloc(layout);
+
         let size = layout.size() as u64;
-        self.total.fetch_add(size, Ordering::Relaxed);
         let prev = self.current.fetch_add(size, Ordering::Relaxed);
+        self.total.fetch_add(size, Ordering::Relaxed);
         self.peak.fetch_max(prev + size, Ordering::Relaxed);
-        ptr
+
+        self.alloc.alloc(layout)
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         self.alloc.dealloc(ptr, layout);
+
         let size = layout.size() as u64;
         self.current.fetch_sub(size, Ordering::Relaxed);
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         self.count.fetch_add(1, Ordering::Relaxed);
-        let ptr = self.alloc.alloc_zeroed(layout);
+
         let size = layout.size() as u64;
-        self.total.fetch_add(size, Ordering::Relaxed);
         let prev = self.current.fetch_add(size, Ordering::Relaxed);
+        self.total.fetch_add(size, Ordering::Relaxed);
         self.peak.fetch_max(prev + size, Ordering::Relaxed);
-        ptr
+
+        self.alloc.alloc_zeroed(layout)
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, old_layout: Layout, new_size: usize) -> *mut u8 {
         self.count.fetch_add(1, Ordering::Relaxed);
+
         let new_ptr = self.alloc.realloc(ptr, old_layout, new_size);
         let old_size = old_layout.size() as u64;
         let new_size = new_size as u64;
+
         if new_ptr == ptr {
             if new_size > old_size {
                 self.total.fetch_add(new_size - old_size, Ordering::Relaxed);
@@ -78,6 +83,7 @@ where
             };
             self.peak.fetch_max(prev + new_size, Ordering::Relaxed);
         }
+
         new_ptr
     }
 }
