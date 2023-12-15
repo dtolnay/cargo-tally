@@ -1,5 +1,5 @@
 use bytesize::ByteSize;
-use std::alloc::{GlobalAlloc, Layout, System};
+use std::alloc::{self, GlobalAlloc, Layout, System};
 use std::fmt::{self, Display};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -20,6 +20,8 @@ static ALLOC: Allocator = Allocator {
     peak: AtomicU64::new(0),
 };
 
+const LIMIT: Option<u64> = include!(concat!(env!("OUT_DIR"), "/limit.mem"));
+
 unsafe impl<A> GlobalAlloc for Allocator<A>
 where
     A: GlobalAlloc,
@@ -30,7 +32,16 @@ where
         let size = layout.size() as u64;
         let prev = self.current.fetch_add(size, Ordering::Relaxed);
         self.total.fetch_add(size, Ordering::Relaxed);
-        self.peak.fetch_max(prev + size, Ordering::Relaxed);
+        let peak = self
+            .peak
+            .fetch_max(prev + size, Ordering::Relaxed)
+            .max(prev + size);
+
+        if let Some(limit) = LIMIT {
+            if peak > limit {
+                alloc::handle_alloc_error(layout);
+            }
+        }
 
         self.alloc.alloc(layout)
     }
@@ -48,7 +59,16 @@ where
         let size = layout.size() as u64;
         let prev = self.current.fetch_add(size, Ordering::Relaxed);
         self.total.fetch_add(size, Ordering::Relaxed);
-        self.peak.fetch_max(prev + size, Ordering::Relaxed);
+        let peak = self
+            .peak
+            .fetch_max(prev + size, Ordering::Relaxed)
+            .max(prev + size);
+
+        if let Some(limit) = LIMIT {
+            if peak > limit {
+                alloc::handle_alloc_error(layout);
+            }
+        }
 
         self.alloc.alloc_zeroed(layout)
     }
@@ -56,21 +76,26 @@ where
     unsafe fn realloc(&self, ptr: *mut u8, old_layout: Layout, new_size: usize) -> *mut u8 {
         self.count.fetch_add(1, Ordering::Relaxed);
 
+        let align = old_layout.align();
+        let new_layout = Layout::from_size_align_unchecked(new_size, align);
+
         let new_ptr = self.alloc.realloc(ptr, old_layout, new_size);
         let old_size = old_layout.size() as u64;
         let new_size = new_size as u64;
 
-        if new_ptr == ptr {
+        let peak = if new_ptr == ptr {
             if new_size > old_size {
                 self.total.fetch_add(new_size - old_size, Ordering::Relaxed);
                 let prev = self
                     .current
                     .fetch_add(new_size - old_size, Ordering::Relaxed);
                 self.peak
-                    .fetch_max(prev + new_size - old_size, Ordering::Relaxed);
+                    .fetch_max(prev + new_size - old_size, Ordering::Relaxed)
+                    .max(prev + new_size - old_size)
             } else {
                 self.current
                     .fetch_sub(old_size - new_size, Ordering::Relaxed);
+                0
             }
         } else {
             self.total.fetch_add(new_size, Ordering::Relaxed);
@@ -81,7 +106,15 @@ where
                 self.current
                     .fetch_sub(old_size - new_size, Ordering::Relaxed)
             };
-            self.peak.fetch_max(prev + new_size, Ordering::Relaxed);
+            self.peak
+                .fetch_max(prev + new_size, Ordering::Relaxed)
+                .max(prev + new_size)
+        };
+
+        if let Some(limit) = LIMIT {
+            if peak > limit {
+                alloc::handle_alloc_error(new_layout);
+            }
         }
 
         new_ptr
