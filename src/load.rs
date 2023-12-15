@@ -140,6 +140,8 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
         })
         .load(path)?;
 
+    crate::mend::mend_crates(&mut crates);
+
     let mut feature_names = mem::take(&mut *feature_names.borrow_mut());
     let mut feature_buffer = Vec::new();
     for (release, mut features) in releases.iter_mut().zip(release_features) {
@@ -196,7 +198,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
     crates.users = users;
     crates.users.extend(teams);
 
-    crate::mend::mend(&mut db_dump, &crates);
+    crate::mend::mend_releases(&mut db_dump, &crates);
 
     Ok((db_dump, crates))
 }
