@@ -22,7 +22,7 @@ cargo-subcommand-metadata = "0.1"
 chrono = "0.4"
 clap = { version = "4", features = ["deprecated"] }
 db-dump = "0.4.10"
-differential-dataflow = { version = "0.12", default-features = false }
+differential-dataflow-master = { version = "=0.13.0-dev.1", default-features = false }
 fnv = "1.0.7"
 minipre = "0.2"
 num_cpus = "1.0"
@@ -34,7 +34,7 @@ serde = "1.0"
 sysinfo = { version = "0.29", default-features = false }
 termcolor = "1.1"
 thiserror = "1.0"
-timely = { version = "0.12", default-features = false }
+timely-master = { version = "=0.13.0-dev.1", default-features = false }
 typed-arena = "2.0"
 
 [package.metadata.docs.rs]
