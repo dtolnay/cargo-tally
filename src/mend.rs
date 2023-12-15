@@ -1,14 +1,36 @@
+//! Fill back in some deleted releases that cause nontrivial number of
+//! dependencies downstream to fail to resolve.
+
 use crate::cratemap::CrateMap;
 use cargo_tally::arena::Slice;
 use cargo_tally::dependency::DependencyKind;
 use cargo_tally::feature::{CrateFeature, DefaultFeatures, FeatureEnables, FeatureId};
-use cargo_tally::id::{DependencyId, VersionId};
+use cargo_tally::id::{CrateId, DependencyId, VersionId};
 use cargo_tally::{DbDump, Dependency, Release};
 use std::collections::BTreeSet as Set;
 
-// Fill back in some deleted crates that cause nontrivial number of dependencies
-// downstream to fail to resolve.
-pub(crate) fn mend(db_dump: &mut DbDump, crates: &CrateMap) {
+pub(crate) fn mend_crates(crates: &mut CrateMap) {
+    let mut next_crate_id = CrateId(1);
+
+    for crate_name in [
+        "futures",
+        "git-version",
+        "lazy_static",
+        "partial-io",
+        "quickcheck",
+        "tokio-core",
+        "tokio-io",
+    ] {
+        if crates.id(crate_name).is_none() {
+            while crates.name(next_crate_id).is_some() {
+                next_crate_id.0 += 1;
+            }
+            crates.insert(next_crate_id, crate_name.to_owned());
+        }
+    }
+}
+
+pub(crate) fn mend_releases(db_dump: &mut DbDump, crates: &CrateMap) {
     let mut used_version_ids = Set::new();
     let mut used_version_numbers = Set::new();
     for rel in &db_dump.releases {
