@@ -43,7 +43,6 @@ use anyhow::Result;
 use std::io::{self, IsTerminal, Write};
 use std::process;
 use std::time::Instant;
-use sysinfo::SystemExt;
 use termcolor::{ColorChoice, StandardStream};
 
 cargo_subcommand_metadata::description!(
