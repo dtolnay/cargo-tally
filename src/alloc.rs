@@ -1,9 +1,15 @@
 use bytesize::ByteSize;
-use std::alloc::{self, GlobalAlloc, Layout, System};
+use std::alloc::{self, GlobalAlloc, Layout};
 use std::fmt::{self, Display};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-struct Allocator<A = System> {
+#[cfg(all(target_arch = "x86_64", target_os = "linux", target_env = "gnu"))]
+use tikv_jemallocator::Jemalloc as DefaultAllocator;
+
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux", target_env = "gnu")))]
+use std::alloc::System as DefaultAllocator;
+
+struct Allocator<A = DefaultAllocator> {
     alloc: A,
     count: AtomicU64,
     total: AtomicU64,
@@ -13,7 +19,7 @@ struct Allocator<A = System> {
 
 #[global_allocator]
 static ALLOC: Allocator = Allocator {
-    alloc: System,
+    alloc: DefaultAllocator,
     count: AtomicU64::new(0),
     total: AtomicU64::new(0),
     current: AtomicU64::new(0),

@@ -37,5 +37,8 @@ thiserror = "1.0"
 timely-master = { version = "=0.13.0-dev.1", default-features = false }
 typed-arena = "2.0"
 
+[target.'cfg(all(target_arch = "x86_64", target_os = "linux", target_env = "gnu"))'.dependencies]
+tikv-jemallocator = "0.5"
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
