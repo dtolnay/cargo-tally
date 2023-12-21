@@ -1,3 +1,4 @@
+#![deny(unsafe_op_in_unsafe_fn)]
 #![allow(non_camel_case_types)]
 #![allow(
     clippy::arc_with_non_send_sync, // https://github.com/rust-lang/rust-clippy/issues/11076
