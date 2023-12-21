@@ -91,7 +91,7 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
 
     let instant = Instant::now();
     let (mut db_dump, crates) = crate::load(&opt.db)?;
-    crate::filter::filter(&mut db_dump, &crates, &opt.exclude);
+    crate::filter::exclude(&mut db_dump, &crates, &opt.exclude);
     db_dump.releases.sort_by_key(|v| v.created_at);
     crate::clean::clean(&mut db_dump, &crates);
     let total = opt.relative.then(|| Total::index(&db_dump.releases));
@@ -101,6 +101,13 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
 
     let query_strings = opt.queries.iter().map(String::as_str);
     let queries = query::parse(query_strings, &crates)?;
+
+    let instant = Instant::now();
+    crate::filter::disjoin(&mut db_dump, &queries);
+    if stderr_isatty {
+        writeln!(stderr.trace(), "simplification time: {:.2?}", instant.elapsed());
+    }
+
     let instant = Instant::now();
     let results = cargo_tally::run(db_dump, opt.jobs, opt.transitive, &queries);
     if stderr_isatty {
