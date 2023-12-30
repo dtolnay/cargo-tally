@@ -18,7 +18,6 @@
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
     clippy::needless_pass_by_value,
-    clippy::option_if_let_else,
     clippy::ptr_as_ptr,
     clippy::significant_drop_in_scrutinee,
     clippy::too_many_lines,
