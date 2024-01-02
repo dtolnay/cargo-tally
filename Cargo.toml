@@ -15,7 +15,7 @@ path = "src/hidden.rs"
 
 [dependencies]
 abomonation = "0.7"
-anyhow = "1.0"
+anyhow = "1.0.79"
 atomic-take = "1.0"
 bytesize = "1.0"
 cargo-subcommand-metadata = "0.1"
@@ -30,10 +30,10 @@ opener = "0.6"
 ref-cast = "1.0"
 regex = { version = "1.9.2", default-features = false, features = ["perf", "std"] }
 semver = "1.0"
-serde = "1.0"
+serde = "1.0.194"
 sysinfo = { version = "0.30", default-features = false }
 termcolor = "1.1"
-thiserror = "1.0"
+thiserror = "1.0.56"
 timely-master = { version = "=0.13.0-dev.1", default-features = false }
 typed-arena = "2.0"
 
