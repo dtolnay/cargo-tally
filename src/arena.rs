@@ -60,6 +60,7 @@ impl<T> FromIterator<T> for Slice<T>
 where
     T: 'static + Send + Clone,
 {
+    #[allow(invalid_reference_casting)] // false positive: https://github.com/rust-lang/rust/issues/121074
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = T>,
