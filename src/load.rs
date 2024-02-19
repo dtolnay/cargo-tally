@@ -13,7 +13,6 @@ use cargo_tally::{DbDump, Dependency, Release};
 use db_dump::crate_owners::OwnerId;
 use std::cell::RefCell;
 use std::collections::{BTreeMap as Map, BTreeSet as Set};
-use std::iter::FromIterator;
 use std::mem;
 use std::path::Path;
 

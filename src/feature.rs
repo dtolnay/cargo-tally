@@ -1,7 +1,6 @@
 use crate::arena::Slice;
 use crate::id::{CrateId, VersionId};
 use std::collections::BTreeMap as Map;
-use std::convert::TryFrom;
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 #[repr(transparent)]

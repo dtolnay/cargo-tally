@@ -1,7 +1,7 @@
 use fnv::FnvHashMap;
 use std::any::TypeId;
 use std::fmt::{self, Debug};
-use std::iter::{Copied, FromIterator};
+use std::iter::Copied;
 use std::slice::Iter;
 use std::sync::OnceLock;
 use std::sync::{Mutex, PoisonError};

@@ -6,7 +6,6 @@ use cargo_tally::id::QueryId;
 use cargo_tally::version::VersionReq;
 use cargo_tally::{Predicate, Query};
 use ref_cast::RefCast;
-use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::str::{FromStr, Split};
 
