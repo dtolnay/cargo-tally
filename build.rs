@@ -27,5 +27,11 @@ fn main() {
     let out = Path::new(&out_dir).join("limit.mem");
     fs::write(out, format!("{limit:?}\n")).unwrap();
 
+    let host = env::var_os("HOST").unwrap();
+    if let Some("windows") = host.to_str().unwrap().split('-').nth(2) {
+        println!("cargo:rustc-cfg=host_os=\"windows\"");
+    }
+
     println!("cargo:rerun-if-env-changed={CARGO_TALLY_MEMORY_LIMIT}");
+    println!("cargo:rustc-check-cfg=cfg(host_os, values(\"windows\"))");
 }
