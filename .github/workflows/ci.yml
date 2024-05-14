@@ -37,6 +37,17 @@ jobs:
       - run: cargo check
       - run: cargo test
 
+  windows:
+    name: Windows
+    needs: pre_ci
+    if: needs.pre_ci.outputs.continue
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
