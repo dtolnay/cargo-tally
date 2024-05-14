@@ -20,7 +20,11 @@ static ALLOC: Allocator = Allocator {
     peak: AtomicU64::new(0),
 };
 
+#[cfg(not(host_os = "windows"))]
 const LIMIT: Option<u64> = include!(concat!(env!("OUT_DIR"), "/limit.mem"));
+
+#[cfg(host_os = "windows")]
+const LIMIT: Option<u64> = include!(concat!(env!("OUT_DIR"), "\\limit.mem"));
 
 unsafe impl<A> GlobalAlloc for Allocator<A>
 where
