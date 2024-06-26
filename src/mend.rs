@@ -20,6 +20,7 @@ pub(crate) fn mend_crates(crates: &mut CrateMap) {
         "quickcheck",
         "tokio-core",
         "tokio-io",
+        "vela-utils",
         "xcm",
         "xcm-executor",
     ] {
