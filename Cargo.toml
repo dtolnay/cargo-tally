@@ -33,7 +33,7 @@ semver = "1.0"
 serde = "1.0.194"
 sysinfo = { version = "0.32", default-features = false, features = ["system"] }
 termcolor = "1.1"
-thiserror = "1.0.56"
+thiserror = "2"
 timely-master = { version = "=0.13.0-dev.1", default-features = false }
 typed-arena = "2.0"
 
