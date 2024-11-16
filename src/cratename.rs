@@ -11,7 +11,7 @@ pub fn valid(name: &str) -> bool {
 }
 
 fn valid_ident(name: &str) -> bool {
-    valid_feature_prefix(name) && name.chars().next().map_or(false, char::is_alphabetic)
+    valid_feature_prefix(name) && name.chars().next().is_some_and(char::is_alphabetic)
 }
 
 fn valid_feature_prefix(name: &str) -> bool {
