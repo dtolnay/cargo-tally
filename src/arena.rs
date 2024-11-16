@@ -1,4 +1,4 @@
-use fnv::FnvHashMap;
+use foldhash::HashMap;
 use std::any::TypeId;
 use std::fmt::{self, Debug};
 use std::iter::Copied;
@@ -70,7 +70,7 @@ where
             return Slice::EMPTY;
         }
 
-        static ARENA: OnceLock<Mutex<FnvHashMap<TypeId, Box<dyn Send>>>> = OnceLock::new();
+        static ARENA: OnceLock<Mutex<HashMap<TypeId, Box<dyn Send>>>> = OnceLock::new();
 
         let mut map = ARENA
             .get_or_init(Mutex::default)
