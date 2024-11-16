@@ -23,7 +23,7 @@ chrono = "0.4.35"
 clap = { version = "4", features = ["deprecated"] }
 db-dump = "0.7.5"
 differential-dataflow-master = { version = "=0.13.0-dev.1", default-features = false }
-fnv = "1.0.7"
+foldhash = "0.1"
 minipre = "0.2"
 num_cpus = "1.0"
 opener = "0.7"
