@@ -141,6 +141,8 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
 
     crate::mend::mend_crates(&mut crates);
 
+    let known_broken = [(crates.id("modbus"), &Version::new(0, 1, 0), "test-server")];
+
     let mut feature_names = mem::take(&mut *feature_names.borrow_mut());
     let mut feature_buffer = Vec::new();
     for (release, mut features) in releases.iter_mut().zip(release_features) {
@@ -159,6 +161,12 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
                         crates.id(name)
                     } {
                         crate_id
+                    } else if known_broken.contains(&(
+                        Some(release.crate_id),
+                        &release.num,
+                        feature_names.name(feature_id),
+                    )) {
+                        release.crate_id
                     } else {
                         bail!(
                             "{} v{} depends on {} which is not found",
