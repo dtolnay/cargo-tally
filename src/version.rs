@@ -8,6 +8,12 @@ use std::str::FromStr;
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Version(pub semver::Version);
 
+impl Version {
+    pub const fn new(major: u64, minor: u64, patch: u64) -> Self {
+        Version(semver::Version::new(major, minor, patch))
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct VersionReq {
     pub comparators: Slice<Comparator>,
