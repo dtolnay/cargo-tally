@@ -1,5 +1,5 @@
 /*.tar.gz
+/Cargo.lock
 /dataflow-graph/
 /report.txt
-/target
-Cargo.lock
+/target/
