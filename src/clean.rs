@@ -71,7 +71,7 @@ pub(crate) fn clean(db_dump: &mut DbDump, crates: &CrateMap) {
                 incompatible_version.minor = max_version.minor + 1;
             } else {
                 incompatible_version.patch = max_version.patch + 1;
-            };
+            }
             if dep.req.matches(&incompatible_version) {
                 // If the declared dependency requirement claims this crate
                 // works with the incompatible future release, we deem the
