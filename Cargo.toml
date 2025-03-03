@@ -17,7 +17,7 @@ path = "src/hidden.rs"
 abomonation = "0.7"
 anyhow = "1.0.79"
 atomic-take = "1.0"
-bytesize = "1.0"
+bytesize = "2"
 cargo-subcommand-metadata = "0.1"
 chrono = "0.4.35"
 clap = { version = "4", features = ["deprecated"] }
