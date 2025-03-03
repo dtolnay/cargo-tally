@@ -5,6 +5,7 @@
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::collapsible_else_if,
+    clippy::elidable_lifetime_names,
     clippy::expl_impl_clone_on_copy,
     clippy::let_underscore_untyped,
     clippy::manual_range_contains,
