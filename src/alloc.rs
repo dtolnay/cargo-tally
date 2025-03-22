@@ -1,6 +1,7 @@
 use bytesize::ByteSize;
 use std::alloc::{self, GlobalAlloc, Layout, System};
 use std::fmt::{self, Display};
+use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 struct Allocator<A = System> {
@@ -87,7 +88,7 @@ where
         let old_size = old_layout.size() as u64;
         let new_size = new_size as u64;
 
-        let peak = if new_ptr == ptr {
+        let peak = if ptr::eq(new_ptr, ptr) {
             if new_size > old_size {
                 self.total.fetch_add(new_size - old_size, Ordering::Relaxed);
                 let prev = self
