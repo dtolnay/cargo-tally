@@ -21,6 +21,7 @@
     clippy::unwrap_or_default,
     clippy::zero_prefixed_literal
 )]
+#![allow(unknown_lints, mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 mod macros;

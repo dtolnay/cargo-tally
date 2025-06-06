@@ -26,6 +26,7 @@
     clippy::uninlined_format_args,
     clippy::unseparated_literal_suffix
 )]
+#![allow(unknown_lints, mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 mod stream;
