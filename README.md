@@ -90,8 +90,8 @@ $ cargo install cargo-tally
 
 ![Fraction of crates.io that depends transitively on libc][libc]
 
-[regex]: https://user-images.githubusercontent.com/1940490/122184090-bc75d600-ce40-11eb-856b-affc568d2e15.png
-[regex-relative]: https://user-images.githubusercontent.com/1940490/122184174-d31c2d00-ce40-11eb-8c17-bde6f3015c28.png
+[regex]: https://github.com/user-attachments/assets/4595d8a3-5c10-4fc2-9e38-d3ec47389257
+[regex-relative]: https://github.com/user-attachments/assets/9ecafff0-ba5b-4fec-8a75-e84ba4cd54d1
 [failure-anyhow-thiserror]: https://github.com/user-attachments/assets/6c648998-30fe-43d0-9e9f-a2616881fbfa
 [libc]: https://user-images.githubusercontent.com/1940490/122184112-c13a8a00-ce40-11eb-8bdb-a7f6f03d2d91.png
 
