@@ -76,7 +76,7 @@ $ cargo install cargo-tally
   *both* `anyhow` and `thiserror` counts as only one for the purpose of the
   `anyhow+thiserror` curve.
 
-  **`$ cargo tally --relative failure anyhow thiserror anyhow+thiserror`**
+  **`$ cargo tally --relative quick-error failure anyhow+thiserror snafu eyre+color-eyre`**
 
 ![Fraction of crates.io that depends directly on various error handling libraries][failure-anyhow-thiserror]
 
@@ -92,7 +92,7 @@ $ cargo install cargo-tally
 
 [regex]: https://user-images.githubusercontent.com/1940490/122184090-bc75d600-ce40-11eb-856b-affc568d2e15.png
 [regex-relative]: https://user-images.githubusercontent.com/1940490/122184174-d31c2d00-ce40-11eb-8c17-bde6f3015c28.png
-[failure-anyhow-thiserror]: https://user-images.githubusercontent.com/1940490/122184103-bf70c680-ce40-11eb-890c-988cd96f4428.png
+[failure-anyhow-thiserror]: https://github.com/user-attachments/assets/6c648998-30fe-43d0-9e9f-a2616881fbfa
 [libc]: https://user-images.githubusercontent.com/1940490/122184112-c13a8a00-ce40-11eb-8bdb-a7f6f03d2d91.png
 
 ---
