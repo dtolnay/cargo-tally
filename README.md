@@ -1,6 +1,6 @@
 # Cargo tally
 
-<img alt="Number of crates that depend directly on each regex version" src="https://user-images.githubusercontent.com/1940490/122184090-bc75d600-ce40-11eb-856b-affc568d2e15.png" width="30%"> <img alt="Fraction of crates that depend on failure vs anyhow and thiserror" src="https://user-images.githubusercontent.com/1940490/122184103-bf70c680-ce40-11eb-890c-988cd96f4428.png" width="30%"> <img alt="Fraction of crates.io that depends transitively on libc" src="https://user-images.githubusercontent.com/1940490/122184112-c13a8a00-ce40-11eb-8bdb-a7f6f03d2d91.png" width="30%">
+<img alt="Number of crates that depend directly on each regex version" src="https://user-images.githubusercontent.com/1940490/122184090-bc75d600-ce40-11eb-856b-affc568d2e15.png" width="30%"> <img alt="Fraction of crates that depend on failure vs anyhow and thiserror" src="https://user-images.githubusercontent.com/1940490/122184103-bf70c680-ce40-11eb-890c-988cd96f4428.png" width="30%"> <img alt="Fraction of crates.io that depends transitively on libc" src="https://github.com/user-attachments/assets/712804c7-f5de-4f99-9cb2-214665c0586f" width="30%">
 
 **`cargo tally` is a Cargo subcommand for drawing graphs of the number of crates
 that depend directly or indirectly on a crate over time.**
@@ -93,7 +93,7 @@ $ cargo install cargo-tally
 [regex]: https://github.com/user-attachments/assets/4595d8a3-5c10-4fc2-9e38-d3ec47389257
 [regex-relative]: https://github.com/user-attachments/assets/9ecafff0-ba5b-4fec-8a75-e84ba4cd54d1
 [failure-anyhow-thiserror]: https://github.com/user-attachments/assets/6c648998-30fe-43d0-9e9f-a2616881fbfa
-[libc]: https://user-images.githubusercontent.com/1940490/122184112-c13a8a00-ce40-11eb-8bdb-a7f6f03d2d91.png
+[libc]: https://github.com/user-attachments/assets/712804c7-f5de-4f99-9cb2-214665c0586f
 
 ---
 
