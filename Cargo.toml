@@ -31,7 +31,7 @@ ref-cast = "1.0"
 regex = { version = "1.9.2", default-features = false, features = ["perf", "std"] }
 semver = "1.0"
 serde = "1.0.194"
-sysinfo = { version = "0.35", default-features = false, features = ["system"] }
+sysinfo = { version = "0.36", default-features = false, features = ["system"] }
 termcolor = "1.1"
 thiserror = "2"
 timely-master = { version = "=0.13.0-dev.1", default-features = false }
