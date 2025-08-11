@@ -2,6 +2,7 @@ use foldhash::HashMap;
 use std::any::TypeId;
 use std::fmt::{self, Debug};
 use std::iter::Copied;
+use std::ptr;
 use std::slice::Iter;
 use std::sync::OnceLock;
 use std::sync::{Mutex, PoisonError};
@@ -79,7 +80,7 @@ where
         let arena: &Box<dyn Send> = map
             .entry(TypeId::of::<T>())
             .or_insert_with(|| Box::new(Arena::<T>::new()));
-        let arena = unsafe { &*(&**arena as *const dyn Send as *const Arena<T>) };
+        let arena = unsafe { &*(ptr::from_ref::<dyn Send>(&**arena) as *const Arena<T>) };
         Slice {
             contents: arena.alloc_extend(iter),
         }
