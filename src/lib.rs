@@ -206,7 +206,10 @@ fn set_timely_worker_log(worker: &Worker<Process>) {
 
     let stream = match TcpStream::connect(addr.to_str().unwrap()) {
         Ok(stream) => stream,
-        Err(err) => panic!("Could not connect logging stream to {addr:?}: {err}"),
+        Err(err) => panic!(
+            "Could not connect logging stream to {addr}: {err}",
+            addr = addr.display(),
+        ),
     };
 
     worker.log_register().insert::<TimelyEvent, _>("timely", {
