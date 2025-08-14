@@ -130,30 +130,36 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
     }
     let _ = stdout.flush();
 
-    if stdout_isatty {
+    let graph_path = if stdout_isatty {
         if results.is_empty() {
             writeln!(stderr.red(), "zero results");
+            None
         } else {
             let labels = opt
                 .queries
                 .iter()
                 .map(|query| query::format(query, &crates))
                 .collect::<Vec<_>>();
-            let path = render::graph(
+            let graph_path = render::graph(
                 opt.title.as_deref(),
                 opt.transitive,
                 &results,
                 &labels,
                 total.as_ref(),
             )?;
-            if opener::open(&path).is_err() && stderr_isatty {
-                let _ = writeln!(stderr, "graph written to {}", path.display());
-            }
+            Some(graph_path)
         }
-    }
+    } else {
+        None
+    };
 
     if stderr_isatty {
         writeln!(stderr.trace(), "{}", alloc::stat());
+    }
+
+    if let Some(path) = graph_path {
+        writeln!(stderr.trace(), "graph written to {}", path.display());
+        let _ = opener::open(&path);
     }
 
     Ok(())
