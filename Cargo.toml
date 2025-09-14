@@ -30,7 +30,7 @@ opener = "0.8"
 ref-cast = "1.0"
 regex = { version = "1.9.2", default-features = false, features = ["perf", "std"] }
 semver = "1.0"
-serde = "1.0.194"
+serde = { package = "serde_core", version = "1.0.220" }
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 termcolor = "1.1"
 thiserror = "2"
