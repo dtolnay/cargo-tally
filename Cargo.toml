@@ -21,7 +21,7 @@ bytesize = "2"
 cargo-subcommand-metadata = "0.1"
 chrono = "0.4.35"
 clap = { version = "4", features = ["deprecated"] }
-db-dump = "0.7.11"
+db-dump = "0.7.14"
 differential-dataflow-master = { version = "=0.13.0-dev.1", default-features = false }
 foldhash = "0.2"
 minipre = "0.2"
