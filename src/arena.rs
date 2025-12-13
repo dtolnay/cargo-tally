@@ -79,7 +79,7 @@ where
         let arena: &Box<dyn Send> = map
             .entry(TypeId::of::<T>())
             .or_insert_with(|| Box::new(Arena::<T>::new()));
-        let arena = unsafe { &*(ptr::from_ref::<dyn Send>(&**arena) as *const Arena<T>) };
+        let arena = unsafe { &*(ptr::from_ref::<dyn Send>(&**arena).cast::<Arena<T>>()) };
         Slice {
             contents: arena.alloc_extend(iter),
         }
