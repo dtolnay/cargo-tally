@@ -84,23 +84,28 @@ where
         let align = old_layout.align();
         let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, align) };
 
+        if let Some(limit) = LIMIT {
+            let current = self.current.load(Ordering::Relaxed);
+            if current + new_size as u64 > limit {
+                alloc::handle_alloc_error(new_layout);
+            }
+        }
+
         let new_ptr = unsafe { self.alloc.realloc(ptr, old_layout, new_size) };
         let old_size = old_layout.size() as u64;
         let new_size = new_size as u64;
 
-        let peak = if ptr::eq(new_ptr, ptr) {
+        if ptr::eq(new_ptr, ptr) {
             if new_size > old_size {
                 self.total.fetch_add(new_size - old_size, Ordering::Relaxed);
                 let prev = self
                     .current
                     .fetch_add(new_size - old_size, Ordering::Relaxed);
                 self.peak
-                    .fetch_max(prev + new_size - old_size, Ordering::Relaxed)
-                    .max(prev + new_size - old_size)
+                    .fetch_max(prev + new_size - old_size, Ordering::Relaxed);
             } else {
                 self.current
                     .fetch_sub(old_size - new_size, Ordering::Relaxed);
-                0
             }
         } else {
             self.total.fetch_add(new_size, Ordering::Relaxed);
@@ -111,15 +116,7 @@ where
                 self.current
                     .fetch_sub(old_size - new_size, Ordering::Relaxed)
             };
-            self.peak
-                .fetch_max(prev + new_size, Ordering::Relaxed)
-                .max(prev + new_size)
-        };
-
-        if let Some(limit) = LIMIT {
-            if peak > limit {
-                alloc::handle_alloc_error(new_layout);
-            }
+            self.peak.fetch_max(prev + new_size, Ordering::Relaxed);
         }
 
         new_ptr
