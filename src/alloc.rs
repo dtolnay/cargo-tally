@@ -1,5 +1,5 @@
 use bytesize::ByteSize;
-use std::alloc::{self, GlobalAlloc, Layout, System};
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::fmt::{self, Display};
 use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -44,7 +44,7 @@ where
 
         if let Some(limit) = LIMIT {
             if peak > limit {
-                alloc::handle_alloc_error(layout);
+                return ptr::null_mut();
             }
         }
 
@@ -71,7 +71,7 @@ where
 
         if let Some(limit) = LIMIT {
             if peak > limit {
-                alloc::handle_alloc_error(layout);
+                return ptr::null_mut();
             }
         }
 
@@ -81,13 +81,10 @@ where
     unsafe fn realloc(&self, ptr: *mut u8, old_layout: Layout, new_size: usize) -> *mut u8 {
         self.count.fetch_add(1, Ordering::Relaxed);
 
-        let align = old_layout.align();
-        let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, align) };
-
         if let Some(limit) = LIMIT {
             let current = self.current.load(Ordering::Relaxed);
             if current + new_size as u64 > limit {
-                alloc::handle_alloc_error(new_layout);
+                return ptr::null_mut();
             }
         }
 
