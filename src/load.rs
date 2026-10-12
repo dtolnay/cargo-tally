@@ -35,7 +35,7 @@ pub(crate) fn load(path: impl AsRef<Path>) -> Result<(DbDump, CrateMap)> {
             crates.insert(crate_id, row.name);
         })
         .users(|row| {
-            users.insert(User::new(row.gh_login), OwnerId::User(row.id));
+            users.insert(User::new(row.username), OwnerId::User(row.id));
         })
         .teams(|row| {
             if let Some(team) = row.login.strip_prefix("github:") {
