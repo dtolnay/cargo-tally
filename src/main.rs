@@ -75,19 +75,20 @@ fn try_main(stderr: &mut StandardStream) -> Result<()> {
         process::exit(1);
     }
 
-    let mut sysinfo = sysinfo::System::new();
-    sysinfo.refresh_memory();
-    let total_memory = sysinfo.total_memory();
-    let (min_memory, advised) = if opt.transitive {
-        (10 * 1024 * 1024 * 1024, "12 GB")
-    } else {
-        (7 * 1024 * 1024 * 1024, "8 GB")
-    };
-    if total_memory < min_memory && total_memory > 0 {
-        writeln!(
-            stderr.warning(),
-            "warning: running with <{advised} memory is not advised.",
-        );
+    if let Ok(mut sysinfo) = sysinfo::System::new() {
+        sysinfo.refresh_memory();
+        let total_memory = sysinfo.total_memory();
+        let (min_memory, advised) = if opt.transitive {
+            (10 * 1024 * 1024 * 1024, "12 GB")
+        } else {
+            (7 * 1024 * 1024 * 1024, "8 GB")
+        };
+        if total_memory < min_memory && total_memory > 0 {
+            writeln!(
+                stderr.warning(),
+                "warning: running with <{advised} memory is not advised.",
+            );
+        }
     }
 
     let stdout_isatty = io::stdout().is_terminal();
